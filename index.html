@@ -1,0 +1,649 @@
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Geography of the Twenties</title>
+<style>
+  /* Layout concept: same deco "stage" board as the Roaring Twenties game, but each
+     clue card splits into clue text + a real, accurately projected map (U.S. Census
+     TIGER / Natural Earth boundary data via the public-domain us-atlas and world-atlas
+     datasets), drawn as inline SVG — never a licensed map image or screenshot. */
+  :root{
+    --bg:#0b1511; --surface:#132019; --surface-2:#1a2b21;
+    --ink:#f3ead9; --ink-dim:#c9bfa9;
+    --gold:#c9a24b; --gold-bright:#e8c874;
+    --emerald:#1f4d3d; --burgundy:#7a2331; --burgundy-bright:#a8364a;
+    --map-bg:#0d1a13; --map-land:#24382c; --map-land-hi:#c9a24b; --map-line:#4d6757;
+    --focus:#e8c874;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="light"]){
+      --bg:#0b1511; --surface:#132019; --surface-2:#1a2b21;
+      --ink:#f3ead9; --ink-dim:#c9bfa9; --gold:#c9a24b; --gold-bright:#e8c874;
+      --emerald:#1f4d3d; --burgundy:#7a2331; --burgundy-bright:#a8364a;
+      --map-bg:#0d1a13; --map-land:#24382c; --map-land-hi:#c9a24b; --map-line:#4d6757;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0b1511; --surface:#132019; --surface-2:#1a2b21;
+    --ink:#f3ead9; --ink-dim:#c9bfa9; --gold:#c9a24b; --gold-bright:#e8c874;
+    --emerald:#1f4d3d; --burgundy:#7a2331; --burgundy-bright:#a8364a;
+    --map-bg:#0d1a13; --map-land:#24382c; --map-land-hi:#c9a24b; --map-line:#4d6757;
+    color-scheme: dark;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    background: var(--bg); color: var(--ink);
+    font-family:'Josefin Sans','Trebuchet MS',sans-serif;
+    padding-left: max(16px, env(safe-area-inset-left,0px));
+    padding-right: max(16px, env(safe-area-inset-right,0px));
+    padding-block: 20px;
+    min-height:100%;
+  }
+  html,body{ height:100%; }
+  h1,h2,h3{ text-wrap:balance; margin:0; }
+  .wrap{ max-width:1180px; margin:0 auto; display:flex; flex-direction:column; gap:22px; }
+
+  .marquee{
+    position:relative; text-align:center; padding:22px 12px 18px;
+    border:2px solid var(--gold); border-radius:6px;
+    background: linear-gradient(180deg, var(--surface-2), var(--surface));
+    box-shadow: 0 0 0 6px var(--bg), 0 0 0 7px rgba(201,162,75,0.35);
+  }
+  .marquee::before, .marquee::after{
+    content:""; position:absolute; top:10px; bottom:10px; width:10px;
+    background-image: radial-gradient(circle, var(--gold-bright) 0 2.5px, transparent 3px);
+    background-size:100% 18px; opacity:.8;
+  }
+  .marquee::before{ left:10px; } .marquee::after{ right:10px; }
+  .eyebrow{ font-family:'Josefin Sans',sans-serif; letter-spacing:.35em; text-transform:uppercase; font-size:.72rem; color:var(--gold); margin-bottom:6px; }
+  .title{ font-family:'Bebas Neue','Josefin Sans',sans-serif; font-size:clamp(2.1rem,6vw,3.4rem); letter-spacing:.04em; color:var(--gold-bright); text-shadow:0 0 18px rgba(232,200,116,0.25); line-height:1; }
+  .subtitle{ font-family:'Libre Caslon Text',Georgia,serif; font-style:italic; color:var(--ink-dim); margin-top:8px; font-size:.98rem; }
+  .top-controls{ display:flex; justify-content:center; gap:10px; margin-top:14px; flex-wrap:wrap; }
+
+  button{
+    font-family:'Josefin Sans',sans-serif; font-weight:600; letter-spacing:.03em;
+    border-radius:4px; border:1.5px solid var(--gold); background:transparent; color:var(--gold-bright);
+    padding:8px 16px; cursor:pointer; font-size:.85rem; transition: background .15s, color .15s, transform .1s;
+  }
+  button:hover{ background:var(--gold); color:#1a1208; }
+  button:active{ transform:scale(.97); }
+  button:focus-visible{ outline:3px solid var(--focus); outline-offset:2px; }
+  button.primary{ background:var(--gold); color:#1a1208; }
+  button.primary:hover{ background:var(--gold-bright); }
+  button.ghost{ border-color:var(--ink-dim); color:var(--ink-dim); }
+  button.ghost:hover{ background:var(--ink-dim); color:#1a1208; }
+  button:disabled{ opacity:.4; cursor:default; }
+  button:disabled:hover{ background:transparent; color:var(--gold-bright); }
+
+  .scoreboard{ display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; }
+  .team-card{ background:var(--surface); border:1px solid rgba(201,162,75,0.35); border-radius:6px; padding:12px 14px; display:flex; flex-direction:column; gap:6px; min-width:0; }
+  .team-card.active{ border-color:var(--gold); box-shadow:0 0 0 1px var(--gold), 0 0 14px rgba(201,162,75,0.25); }
+  .team-name-row{ display:flex; align-items:center; gap:8px; min-width:0; }
+  .team-name{ background:transparent; border:none; color:var(--gold-bright); font-family:'Josefin Sans',sans-serif; font-weight:700; letter-spacing:.03em; font-size:.95rem; padding:2px 0; width:100%; min-width:0; }
+  .team-name:focus-visible{ outline:2px solid var(--focus); border-radius:2px; }
+  .team-score{ font-family:'Bebas Neue',sans-serif; font-size:2rem; letter-spacing:.02em; font-variant-numeric:tabular-nums; color:var(--ink); }
+  .team-score.neg{ color:var(--burgundy-bright); }
+  .score-btns{ display:flex; gap:6px; }
+  .score-btns button{ flex:1; padding:6px 4px; font-size:.78rem; }
+
+  .board{ display:grid; grid-template-columns:repeat(2,1fr); gap:6px; }
+  .cat-head{ background:var(--emerald); border:1px solid var(--gold); border-radius:4px; padding:12px 8px; text-align:center; font-family:'Bebas Neue',sans-serif; letter-spacing:.03em; font-size:clamp(.95rem,2.6vw,1.3rem); color:var(--gold-bright); display:flex; align-items:center; justify-content:center; min-height:56px; line-height:1.15; }
+  .tile{ background:var(--surface-2); border:1px solid rgba(201,162,75,0.4); border-radius:4px; min-height:70px; display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue',sans-serif; font-size:clamp(1.1rem,3.4vw,1.6rem); color:var(--gold); cursor:pointer; transition: background .12s, transform .12s; font-variant-numeric:tabular-nums; }
+  .tile:hover:not(.used){ background:var(--surface); color:var(--gold-bright); transform:translateY(-2px); }
+  .tile.used{ color:rgba(201,162,75,0.18); cursor:default; background:rgba(19,32,25,0.4); }
+  .tile:focus-visible{ outline:3px solid var(--focus); outline-offset:-2px; }
+
+  .overlay{ position:fixed; inset:0; background:rgba(5,9,7,0.92); display:flex; align-items:center; justify-content:center; padding: max(16px, env(safe-area-inset-top,0px)) max(16px, env(safe-area-inset-right,0px)) max(16px, env(safe-area-inset-bottom,0px)) max(16px, env(safe-area-inset-left,0px)); z-index:50; }
+  .stage{ width:min(960px,100%); background:linear-gradient(180deg, var(--surface-2), var(--surface)); border:2px solid var(--gold); border-radius:8px; box-shadow:0 0 0 6px var(--bg), 0 0 0 7px rgba(201,162,75,0.35); padding:24px clamp(16px,4vw,36px) 24px; display:flex; flex-direction:column; gap:14px; max-height:94vh; overflow-y:auto; }
+  .stage-kicker{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; font-family:'Josefin Sans',sans-serif; letter-spacing:.2em; text-transform:uppercase; font-size:.73rem; color:var(--gold); }
+  .timer-bar{ height:6px; border-radius:3px; background:rgba(201,162,75,0.2); overflow:hidden; }
+  .timer-fill{ height:100%; background:var(--gold); width:100%; transform-origin:left; }
+
+  .clue-layout{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.05fr); gap:18px; align-items:center; }
+  @media (max-width:740px){ .clue-layout{ grid-template-columns:1fr; } }
+  .clue-text{ font-family:'Libre Caslon Text',Georgia,serif; font-size:clamp(1.05rem,2.6vw,1.4rem); line-height:1.5; color:var(--ink); }
+  .answer-text{ font-family:'Libre Caslon Text',Georgia,serif; font-style:italic; font-size:clamp(1rem,2.4vw,1.25rem); color:var(--gold-bright); border-top:1px solid rgba(201,162,75,0.35); padding-top:14px; margin-top:14px; }
+  .map-frame{ background:var(--map-bg); border:1px solid var(--map-line); border-radius:6px; padding:8px; min-width:0; }
+  .map-frame svg{ width:100%; height:auto; display:block; }
+  .map-caption{ text-align:center; font-size:.66rem; color:var(--ink-dim); margin-top:6px; letter-spacing:.04em; }
+  .map-legend{ display:flex; gap:14px; justify-content:center; margin-top:8px; font-size:.72rem; color:var(--ink-dim); }
+  .map-legend span{ display:inline-flex; align-items:center; gap:6px; }
+  .swatch{ width:11px; height:11px; border-radius:2px; display:inline-block; }
+
+  .stage-actions{ display:flex; justify-content:center; gap:10px; flex-wrap:wrap; }
+  .award-row{ display:flex; flex-direction:column; gap:8px; }
+  .award-row h3{ font-family:'Josefin Sans',sans-serif; font-size:.78rem; letter-spacing:.2em; text-transform:uppercase; color:var(--ink-dim); text-align:center; }
+  .award-grid{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+  .award-grid button{ min-width:120px; }
+
+  .dd-banner{ text-align:center; font-family:'Bebas Neue',sans-serif; letter-spacing:.06em; font-size:clamp(1.6rem,5vw,2.4rem); color:var(--burgundy-bright); text-shadow:0 0 18px rgba(168,54,74,0.4); }
+  .wager-input{ font-family:'Bebas Neue',sans-serif; font-size:1.6rem; text-align:center; background:var(--surface); border:1.5px solid var(--gold); border-radius:4px; color:var(--gold-bright); padding:8px; width:160px; margin:0 auto; font-variant-numeric:tabular-nums; }
+  .wager-input:focus-visible{ outline:3px solid var(--focus); }
+  .hint{ text-align:center; color:var(--ink-dim); font-size:.85rem; }
+
+  .setup-card{ width:min(560px,100%); }
+  .setup-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .num-teams{ display:flex; gap:8px; }
+  .num-teams button.selected{ background:var(--gold); color:#1a1208; }
+  .setup-names{ display:flex; flex-direction:column; gap:10px; }
+  .setup-names input{ font-family:'Josefin Sans',sans-serif; font-weight:600; font-size:1rem; background:var(--surface); border:1.5px solid rgba(201,162,75,0.4); border-radius:4px; color:var(--ink); padding:9px 12px; }
+  .setup-names input:focus-visible{ outline:3px solid var(--focus); }
+  .footer-note{ text-align:center; color:var(--ink-dim); font-size:.78rem; padding-bottom:4px; }
+  [hidden]{ display:none !important; }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Josefin+Sans:wght@400;600;700&family=Libre+Caslon+Text:ital@0;1&display=swap" rel="stylesheet">
+<script src="map-data.js"></script>
+
+<div class="wrap">
+
+  <div class="marquee">
+    <div class="eyebrow">U.S. History &middot; Geography Review</div>
+    <h1 class="title">Geography of the Twenties</h1>
+    <p class="subtitle">From the Great Migration to the road into World War I</p>
+    <div class="top-controls">
+      <button id="btnSound" class="ghost" aria-pressed="true">🔊 Sound On</button>
+      <button id="btnNewTeams" class="ghost">Edit Teams</button>
+      <button id="btnReset" class="ghost">Reset Board</button>
+    </div>
+  </div>
+
+  <div class="scoreboard" id="scoreboard"></div>
+
+  <div class="board" id="board"></div>
+
+  <p class="footer-note">Click any tile to reveal a clue. Maps use real boundary data (U.S. Census / Natural Earth), not licensed map images. One tile is secretly a Daily Double.</p>
+</div>
+
+<div class="overlay" id="setupOverlay">
+  <div class="stage setup-card">
+    <h2 class="title" style="font-size:1.6rem;text-align:center;">Set Up Your Teams</h2>
+    <div class="setup-row">
+      <span style="font-family:'Josefin Sans',sans-serif;letter-spacing:.1em;text-transform:uppercase;font-size:.8rem;color:var(--ink-dim);">Number of teams</span>
+      <div class="num-teams" id="numTeams"></div>
+    </div>
+    <div class="setup-names" id="setupNames"></div>
+    <div class="stage-actions">
+      <button class="primary" id="btnStart">Start the Game</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="clueOverlay" hidden>
+  <div class="stage" id="clueStage"></div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- Region map data lookup ---------------- */
+  var REGIONS = {
+    us: { states: US_STATES, meta: { width: US_NATION.width, height: US_NATION.height, borders: US_NATION.borders }, cities: US_CITIES },
+    europe: { states: EUROPE_STATES, meta: EUROPE_META, cities: EUROPE_CITIES },
+    atlantic: { states: ATLANTIC_STATES, meta: ATLANTIC_META, cities: ATLANTIC_CITIES }
+  };
+
+  function buildMapSVG(m){
+    var region = REGIONS[m.region];
+    var W = region.meta.width, H = region.meta.height;
+    var highlight = m.highlight || [];
+    var highlightAlt = m.highlightAlt || [];
+    var routes = m.routes || [];
+    var pins = m.pins || [];
+    var parts = [];
+    var uid = "map" + Math.random().toString(36).slice(2,8);
+    parts.push('<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+(m.alt||'Map')+'">');
+    parts.push('<rect width="100%" height="100%" fill="var(--map-bg)"/>');
+    parts.push('<defs><marker id="arrow-'+uid+'" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--gold-bright)"/></marker></defs>');
+    for(var name in region.states){
+      var fill = "var(--map-land)";
+      if(highlightAlt.indexOf(name) !== -1) fill = "var(--burgundy-bright)";
+      else if(highlight.indexOf(name) !== -1) fill = "var(--map-land-hi)";
+      parts.push('<path d="'+region.states[name]+'" fill="'+fill+'" stroke="none"/>');
+    }
+    parts.push('<path d="'+region.meta.borders+'" fill="none" stroke="var(--map-line)" stroke-width="0.8"/>');
+    for(var r=0;r<routes.length;r++){
+      var from = region.cities[routes[r].from], to = region.cities[routes[r].to];
+      if(!from||!to) continue;
+      var mx=(from.x+to.x)/2, my=(from.y+to.y)/2-34;
+      parts.push('<path d="M'+from.x+','+from.y+' Q'+mx+','+my+' '+to.x+','+to.y+'" fill="none" stroke="var(--gold-bright)" stroke-width="2.4" stroke-dasharray="6 5" marker-end="url(#arrow-'+uid+')"/>');
+    }
+    for(var p=0;p<pins.length;p++){
+      var pin = pins[p];
+      var c = region.cities[pin.name];
+      if(!c) continue;
+      parts.push('<circle cx="'+c.x+'" cy="'+c.y+'" r="6" fill="var(--burgundy-bright)" stroke="var(--map-bg)" stroke-width="2"/>');
+      var ly = pin.labelBelow ? c.y+16 : c.y-10;
+      parts.push('<text x="'+c.x+'" y="'+ly+'" text-anchor="middle" font-family="Josefin Sans, sans-serif" font-size="11" font-weight="600" fill="var(--ink)" paint-order="stroke" stroke="var(--map-bg)" stroke-width="3">'+(pin.label||pin.name)+'</text>');
+    }
+    parts.push('</svg>');
+    return parts.join('');
+  }
+
+  /* ---------------- Game data ---------------- */
+  var CATEGORIES = [
+    {
+      name: "Geography: USA",
+      clues: [
+        {
+          clue: "This Manhattan neighborhood became the center of a 1920s explosion in Black literature, art, and music, lending its name to the whole cultural movement.",
+          answer: "What is Harlem?",
+          map: { region:"us", alt:"Map of the United States with New York highlighted and Harlem marked",
+            highlight:["New York"], pins:[{name:"Harlem (NYC)", label:"Harlem", labelBelow:true}] }
+        },
+        {
+          clue: "This mass movement carried hundreds of thousands of Black families out of Southern states and into Northern cities like Chicago and New York during the 1920s.",
+          answer: "What is the Great Migration?",
+          map: { region:"us", alt:"Map of the United States with Southern states highlighted and arrows pointing north to Chicago and New York",
+            highlight:["Louisiana","Mississippi","Alabama","Georgia","South Carolina","Tennessee"],
+            routes:[{from:"New Orleans",to:"Chicago"},{from:"Atlanta",to:"New York"}],
+            pins:[{name:"Chicago"},{name:"New York"},{name:"New Orleans",labelBelow:true},{name:"Atlanta",labelBelow:true}] }
+        },
+        {
+          clue: "This Michigan city became the center of the auto industry in the 1920s, home to Ford's moving assembly line and mass production.",
+          answer: "What is Detroit?",
+          map: { region:"us", alt:"Map of the United States with Michigan highlighted and Detroit marked",
+            highlight:["Michigan"], pins:[{name:"Detroit", labelBelow:true}] }
+        },
+        {
+          clue: "Huge new oil strikes across this state, from Burkburnett in the north to Gulf Coast refineries near Houston, fueled one of the decade's biggest regional economic booms.",
+          answer: "What is Texas?",
+          map: { region:"us", alt:"Map of the United States with Texas highlighted and oil boomtowns marked",
+            highlight:["Texas"], pins:[{name:"Burkburnett"},{name:"Mexia",labelBelow:true},{name:"Houston",labelBelow:true},{name:"Beaumont"}] }
+        },
+        {
+          clue: "This small Tennessee town hosted the famous 1925 trial over a teacher charged with breaking a state law against teaching evolution in public schools.",
+          answer: "What is Dayton, Tennessee (the Scopes Trial)?",
+          map: { region:"us", alt:"Map of the United States with Tennessee highlighted and Dayton marked",
+            highlight:["Tennessee"], pins:[{name:"Dayton, TN", label:"Dayton", labelBelow:true},{name:"Nashville"}] }
+        }
+      ]
+    },
+    {
+      name: "Geography: Europe & WWI",
+      clues: [
+        {
+          clue: "A German U-boat sank this British ocean liner off the coast of Ireland in 1915, killing over a hundred Americans and turning U.S. opinion against Germany.",
+          answer: "What is the Lusitania?",
+          map: { region:"europe", alt:"Map of Europe with Ireland highlighted and the Lusitania sinking site marked off its coast",
+            highlight:["Ireland"], pins:[{name:"Lusitania sinking site", label:"Sunk here, 1915", labelBelow:true},{name:"Dublin"}] }
+        },
+        {
+          clue: "In this intercepted 1917 telegram, Germany secretly proposed a military alliance with Mexico against the United States, helping push the U.S. into World War I.",
+          answer: "What is the Zimmermann Telegram?",
+          map: { region:"atlantic", alt:"Map of the Atlantic with Germany and Mexico highlighted and a route line between them",
+            highlight:["Germany","Mexico"], routes:[{from:"Berlin",to:"Mexico City"}],
+            pins:[{name:"Berlin"},{name:"Mexico City",labelBelow:true},{name:"Washington, D.C.",labelBelow:true}] }
+        },
+        {
+          clue: "American troops fought their largest and bloodiest WWI battle in this French forest during the final weeks of the war.",
+          answer: "What is the Meuse-Argonne Offensive (the Argonne Forest)?",
+          map: { region:"europe", alt:"Map of Europe with France highlighted and the Argonne Forest marked",
+            highlight:["France"], pins:[{name:"Argonne Forest", label:"Argonne Forest", labelBelow:true},{name:"Paris"}] }
+        },
+        {
+          clue: "World leaders met at this palace outside Paris in 1919 to sign the treaty that officially ended World War I and created the League of Nations.",
+          answer: "What is the Palace of Versailles (the Treaty of Versailles)?",
+          map: { region:"europe", alt:"Map of Europe with France highlighted and Versailles marked near Paris",
+            highlight:["France"], pins:[{name:"Versailles", labelBelow:true},{name:"Paris"}] }
+        },
+        {
+          clue: "The 1924 immigration law used quotas that favored immigrants from this region of Europe over those from the southern and eastern parts of the continent.",
+          answer: "What is Northern and Western Europe?",
+          map: { region:"europe", alt:"Map of Europe with northern and western countries in gold and southern and eastern countries in red, showing 1924 immigration quota bias",
+            highlight:["Germany","France","United Kingdom","Ireland","Netherlands","Belgium","Denmark","Sweden","Norway"],
+            highlightAlt:["Italy","Poland","Russia","Greece","Romania","Serbia","Croatia","Slovenia","Bosnia and Herzegovina","North Macedonia","Montenegro","Bulgaria","Hungary","Austria","Czechia","Slovakia","Ukraine"],
+            pins:[],
+            legend:[{color:"var(--map-land-hi)", label:"Higher quotas"},{color:"var(--burgundy-bright)", label:"Lower quotas"}] }
+        }
+      ]
+    }
+  ];
+  var VALUES = [100,200,300,400,500];
+
+  /* ---------------- Sound (Web Audio, synthesized) ---------------- */
+  var AudioCtx = window.AudioContext || window.webkitAudioContext;
+  var actx = null;
+  var soundOn = true;
+  function ctx(){ if(!actx && AudioCtx){ try{ actx = new AudioCtx(); }catch(e){ actx = null; } } return actx; }
+  function tone(freq, start, dur, type, gain){
+    var c = ctx(); if(!c || !soundOn || !freq) return;
+    try{
+      var osc = c.createOscillator(); var g = c.createGain();
+      osc.type = type || "sine"; osc.frequency.value = freq;
+      g.gain.value = 0;
+      osc.connect(g); g.connect(c.destination);
+      var t0 = c.currentTime + start;
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(gain || 0.18, t0 + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc.start(t0); osc.stop(t0 + dur + 0.02);
+    }catch(e){}
+  }
+  function sfxSelect(){ tone(740,0,0.12,"triangle",0.15); tone(988,0.05,0.14,"triangle",0.13); }
+  function sfxCorrect(){ tone(523.25,0,0.14,"sine",0.18); tone(659.25,0.1,0.16,"sine",0.18); tone(784,0.2,0.26,"sine",0.2); }
+  function sfxWrong(){ tone(196,0,0.22,"sawtooth",0.16); tone(174.6,0.14,0.3,"sawtooth",0.16); }
+  function sfxTick(){ tone(1046,0,0.045,"square",0.06); }
+  function sfxTimeUp(){ tone(220,0,0.3,"sawtooth",0.18); tone(174.6,0.12,0.35,"sawtooth",0.18); }
+  function sfxDailyDouble(){ var notes=[392,523.25,659.25,784,987.77]; for(var i=0;i<notes.length;i++){ tone(notes[i], i*0.12, 0.3, "triangle", 0.2); } }
+
+  function pluckTone(freq, start, dur, gain){
+    var c = ctx(); if(!c || !soundOn || !freq) return;
+    try{
+      var t0 = c.currentTime + start;
+      var osc1 = c.createOscillator(), g1 = c.createGain();
+      osc1.type = "triangle"; osc1.frequency.value = freq;
+      osc1.connect(g1); g1.connect(c.destination);
+      g1.gain.setValueAtTime(0, t0);
+      g1.gain.linearRampToValueAtTime(gain, t0 + 0.012);
+      g1.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc1.start(t0); osc1.stop(t0 + dur + 0.02);
+      var osc2 = c.createOscillator(), g2 = c.createGain();
+      osc2.type = "sine"; osc2.frequency.value = freq * 2;
+      osc2.connect(g2); g2.connect(c.destination);
+      g2.gain.setValueAtTime(0, t0);
+      g2.gain.linearRampToValueAtTime(gain * 0.32, t0 + 0.008);
+      g2.gain.exponentialRampToValueAtTime(0.0001, t0 + dur * 0.55);
+      osc2.start(t0); osc2.stop(t0 + dur * 0.55 + 0.02);
+    }catch(e){}
+  }
+  function clockTick(gain){ tone(1800, 0, 0.025, "square", gain); }
+  var THINK_MELODY = [392.00,null,349.23,392.00,440.00,null,392.00,349.23,329.63,null,349.23,392.00,440.00,493.88,440.00,null];
+  var thinkTimeoutId=null, thinkStep=0, thinkProgress=0;
+  function setThinkProgress(p){ thinkProgress = Math.max(0, Math.min(1,p)); }
+  function scheduleThink(){
+    var interval = 520 - thinkProgress*320;
+    var noteGain = 0.10 + thinkProgress*0.12;
+    var tickGain = 0.045 + thinkProgress*0.06;
+    var dur = Math.max(0.14, (interval/1000)*0.9);
+    var freq = THINK_MELODY[thinkStep % THINK_MELODY.length];
+    if(freq) pluckTone(freq, 0, dur, noteGain);
+    clockTick(tickGain);
+    thinkStep++;
+    thinkTimeoutId = setTimeout(scheduleThink, interval);
+  }
+  function startThinkingMusic(){ stopThinkingMusic(); thinkStep=0; thinkProgress=0; scheduleThink(); }
+  function stopThinkingMusic(){ if(thinkTimeoutId){ clearTimeout(thinkTimeoutId); thinkTimeoutId=null; } }
+
+  /* ---------------- State ---------------- */
+  var state = {
+    teams: [ {name:"Team 1", score:0}, {name:"Team 2", score:0} ],
+    activeTeam: 0, used: {}, dailyDoubles: [], started: false
+  };
+
+  function storageSafeGet(key){ try{ var v=localStorage.getItem(key); return v?JSON.parse(v):null; }catch(e){ return null; } }
+  function storageSafeSet(key,val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){} }
+
+  function pickDailyDoubles(){
+    var keys = [];
+    for(var c=0;c<CATEGORIES.length;c++){ for(var v=0;v<VALUES.length;v++){ keys.push(c+"-"+v); } }
+    var pool = keys.filter(function(k){ return k.split("-")[1] !== "0"; });
+    var idx = Math.floor(Math.random()*pool.length);
+    return [pool[idx]];
+  }
+
+  /* ---------------- Scoreboard ---------------- */
+  var scoreboardEl = document.getElementById("scoreboard");
+  function renderScoreboard(){
+    scoreboardEl.innerHTML = "";
+    state.teams.forEach(function(team,i){
+      var card = document.createElement("div");
+      card.className = "team-card" + (i===state.activeTeam ? " active" : "");
+      var nameRow = document.createElement("div");
+      nameRow.className = "team-name-row";
+      var nameInput = document.createElement("input");
+      nameInput.className = "team-name"; nameInput.value = team.name;
+      nameInput.setAttribute("aria-label","Team "+(i+1)+" name");
+      nameInput.addEventListener("change", function(){
+        state.teams[i].name = nameInput.value.trim() || ("Team "+(i+1));
+        saveState(); renderScoreboard();
+      });
+      nameRow.appendChild(nameInput); card.appendChild(nameRow);
+      var scoreEl = document.createElement("div");
+      scoreEl.className = "team-score" + (team.score<0 ? " neg" : "");
+      scoreEl.textContent = "$" + team.score;
+      card.appendChild(scoreEl);
+      var btnRow = document.createElement("div"); btnRow.className = "score-btns";
+      var minus = document.createElement("button"); minus.textContent = "−100";
+      minus.addEventListener("click", function(){ adjustScore(i,-100); });
+      var plus = document.createElement("button"); plus.textContent = "+100";
+      plus.addEventListener("click", function(){ adjustScore(i,100); });
+      var turn = document.createElement("button"); turn.textContent = "Turn"; turn.className = "ghost";
+      turn.addEventListener("click", function(){ state.activeTeam = i; saveState(); renderScoreboard(); });
+      btnRow.appendChild(minus); btnRow.appendChild(plus); btnRow.appendChild(turn);
+      card.appendChild(btnRow);
+      scoreboardEl.appendChild(card);
+    });
+  }
+  function adjustScore(i,delta){ state.teams[i].score += delta; saveState(); renderScoreboard(); }
+
+  /* ---------------- Board ---------------- */
+  var boardEl = document.getElementById("board");
+  function renderBoard(){
+    boardEl.innerHTML = "";
+    CATEGORIES.forEach(function(cat){
+      var head = document.createElement("div");
+      head.className = "cat-head"; head.textContent = cat.name;
+      boardEl.appendChild(head);
+    });
+    for(var v=0; v<VALUES.length; v++){
+      for(var c=0; c<CATEGORIES.length; c++){
+        var key = c+"-"+v;
+        var tile = document.createElement("div");
+        var used = !!state.used[key];
+        tile.className = "tile" + (used ? " used" : "");
+        tile.textContent = used ? "" : ("$"+VALUES[v]);
+        tile.tabIndex = used ? -1 : 0;
+        tile.setAttribute("role","button");
+        tile.setAttribute("aria-label", used ? "Used clue" : (CATEGORIES[c].name + " for $" + VALUES[v]));
+        (function(c,v,key){
+          function activate(){ if(state.used[key]) return; sfxSelect(); openClue(c,v,key); }
+          tile.addEventListener("click", activate);
+          tile.addEventListener("keydown", function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); activate(); } });
+        })(c,v,key);
+        boardEl.appendChild(tile);
+      }
+    }
+  }
+
+  /* ---------------- Clue overlay ---------------- */
+  var clueOverlay = document.getElementById("clueOverlay");
+  var clueStage = document.getElementById("clueStage");
+  var timerInterval = null;
+  function clearTimer(){ if(timerInterval){ clearInterval(timerInterval); timerInterval=null; } stopThinkingMusic(); }
+  function closeClue(){ clearTimer(); clueOverlay.hidden = true; clueStage.innerHTML = ""; }
+
+  function openClue(c,v,key){
+    var isDD = state.dailyDoubles.indexOf(key) !== -1;
+    var data = CATEGORIES[c].clues[v];
+    var value = VALUES[v];
+    if(isDD){ renderDailyDoubleWager(c,v,key,data,value); }
+    else { renderClueCard(c,v,key,data,value,value,false); }
+    clueOverlay.hidden = false;
+  }
+
+  function renderDailyDoubleWager(c,v,key,data,baseValue){
+    sfxDailyDouble(); clearTimer();
+    var team = state.teams[state.activeTeam];
+    var maxWager = Math.max(baseValue*2, Math.max(500, team.score));
+    clueStage.innerHTML =
+      '<div class="dd-banner">DAILY DOUBLE</div>' +
+      '<p class="hint">' + escapeHtml(team.name) + ', wager your points. Minimum $5, up to $' + maxWager + '.</p>' +
+      '<input class="wager-input" id="wagerInput" type="number" inputmode="numeric" min="5" max="'+maxWager+'" step="5" value="'+Math.min(baseValue,maxWager)+'" aria-label="Wager amount">' +
+      '<div class="stage-actions"><button class="primary" id="wagerGo">Lock In Wager</button></div>';
+    var input = clueStage.querySelector("#wagerInput");
+    clueStage.querySelector("#wagerGo").addEventListener("click", function(){
+      var w = parseInt(input.value,10);
+      if(isNaN(w) || w<5) w=5;
+      if(w>maxWager) w=maxWager;
+      renderClueCard(c,v,key,data,baseValue,w,true);
+    });
+  }
+
+  function renderClueCard(c,v,key,data,baseValue,pointValue,isDD){
+    clearTimer();
+    var timeLimit = 25;
+    var mapHtml = data.map ? buildMapSVG(data.map) : "";
+    var legendHtml = "";
+    if(data.map && data.map.legend && data.map.legend.length){
+      legendHtml = '<div class="map-legend">' + data.map.legend.map(function(l){
+        return '<span><span class="swatch" style="background:'+l.color+'"></span>'+escapeHtml(l.label)+'</span>';
+      }).join("") + '</div>';
+    }
+
+    clueStage.innerHTML =
+      '<div class="stage-kicker"><span>' + escapeHtml(CATEGORIES[c].name) + (isDD?' &middot; DAILY DOUBLE':'') + '</span><span>$' + pointValue + '</span></div>' +
+      '<div class="timer-bar"><div class="timer-fill" id="timerFill"></div></div>' +
+      '<div class="clue-layout">' +
+        '<div class="clue-body">' +
+          '<div class="clue-text">' + escapeHtml(data.clue) + '</div>' +
+          '<div class="answer-text" id="answerText" hidden>' + escapeHtml(data.answer) + '</div>' +
+        '</div>' +
+        (mapHtml ? ('<div class="map-frame">' + mapHtml + '<p class="map-caption">Real boundary data, not a licensed map image</p>' + legendHtml + '</div>') : '') +
+      '</div>' +
+      '<div class="stage-actions" id="stageActions">' +
+        '<button class="primary" id="btnReveal">Reveal Answer</button>' +
+        '<button class="ghost" id="btnSkip">Close (No Score)</button>' +
+      '</div>' +
+      '<div class="award-row" id="awardRow" hidden>' +
+        '<h3>Who answered correctly?</h3>' +
+        '<div class="award-grid" id="awardGrid"></div>' +
+      '</div>';
+
+    var fill = clueStage.querySelector("#timerFill");
+    var secondsLeft = timeLimit;
+    startThinkingMusic();
+    timerInterval = setInterval(function(){
+      secondsLeft -= 1;
+      var pct = Math.max(0, secondsLeft/timeLimit*100);
+      fill.style.width = pct + "%";
+      setThinkProgress((timeLimit-secondsLeft)/timeLimit);
+      if(secondsLeft<=5 && secondsLeft>0) sfxTick();
+      if(secondsLeft<=0){ clearTimer(); sfxTimeUp(); }
+    }, 1000);
+
+    clueStage.querySelector("#btnReveal").addEventListener("click", function(){
+      clearTimer();
+      clueStage.querySelector("#answerText").hidden = false;
+      clueStage.querySelector("#stageActions").hidden = true;
+      var awardRow = clueStage.querySelector("#awardRow");
+      awardRow.hidden = false;
+      var grid = clueStage.querySelector("#awardGrid");
+      grid.innerHTML = "";
+      state.teams.forEach(function(team,i){
+        var b = document.createElement("button");
+        b.textContent = team.name;
+        b.addEventListener("click", function(){
+          markUsed(key); adjustScore(i, pointValue); state.activeTeam = i;
+          sfxCorrect(); saveState(); renderBoard(); closeClue();
+        });
+        grid.appendChild(b);
+      });
+      var noneBtn = document.createElement("button");
+      noneBtn.className = "ghost";
+      noneBtn.textContent = isDD ? "Wrong (lose wager)" : "No one got it";
+      noneBtn.addEventListener("click", function(){
+        markUsed(key);
+        if(isDD){ adjustScore(state.activeTeam, -pointValue); }
+        sfxWrong(); saveState(); renderBoard(); closeClue();
+      });
+      grid.appendChild(noneBtn);
+    });
+
+    clueStage.querySelector("#btnSkip").addEventListener("click", function(){
+      markUsed(key); saveState(); renderBoard(); closeClue();
+    });
+  }
+
+  function markUsed(key){ state.used[key] = true; }
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, function(ch){ return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[ch]; });
+  }
+
+  /* ---------------- Setup overlay ---------------- */
+  var setupOverlay = document.getElementById("setupOverlay");
+  var numTeamsEl = document.getElementById("numTeams");
+  var setupNamesEl = document.getElementById("setupNames");
+  var teamCountChoice = 2;
+
+  function renderNumTeams(){
+    numTeamsEl.innerHTML = "";
+    [2,3,4].forEach(function(n){
+      var b = document.createElement("button");
+      b.textContent = n; b.className = n===teamCountChoice ? "selected" : "";
+      b.addEventListener("click", function(){ teamCountChoice=n; renderNumTeams(); renderSetupNames(); });
+      numTeamsEl.appendChild(b);
+    });
+  }
+  function renderSetupNames(){
+    setupNamesEl.innerHTML = "";
+    for(var i=0;i<teamCountChoice;i++){
+      var input = document.createElement("input");
+      input.type = "text"; input.placeholder = "Team " + (i+1) + " name";
+      input.value = (state.teams[i] && state.teams[i].name) || ("Team "+(i+1));
+      input.id = "setupName"+i;
+      setupNamesEl.appendChild(input);
+    }
+  }
+
+  document.getElementById("btnStart").addEventListener("click", function(){
+    var teams = [];
+    for(var i=0;i<teamCountChoice;i++){
+      var val = document.getElementById("setupName"+i).value.trim();
+      teams.push({ name: val || ("Team "+(i+1)), score: 0 });
+    }
+    state.teams = teams; state.activeTeam = 0; state.used = {};
+    state.dailyDoubles = pickDailyDoubles(); state.started = true;
+    saveState(); renderScoreboard(); renderBoard();
+    setupOverlay.hidden = true; sfxSelect();
+  });
+
+  document.getElementById("btnNewTeams").addEventListener("click", function(){
+    teamCountChoice = state.teams.length || 2;
+    renderNumTeams(); renderSetupNames();
+    setupOverlay.hidden = false;
+  });
+
+  document.getElementById("btnReset").addEventListener("click", function(){
+    state.used = {}; state.dailyDoubles = pickDailyDoubles();
+    state.teams.forEach(function(t){ t.score = 0; });
+    state.activeTeam = 0;
+    saveState(); renderScoreboard(); renderBoard();
+  });
+
+  document.getElementById("btnSound").addEventListener("click", function(){
+    soundOn = !soundOn;
+    this.textContent = soundOn ? "🔊 Sound On" : "🔇 Sound Off";
+    this.setAttribute("aria-pressed", soundOn ? "true" : "false");
+    if(soundOn) sfxSelect();
+  });
+
+  /* ---------------- Persistence ---------------- */
+  function saveState(){ storageSafeSet("rt-geography-state", state); }
+  function loadState(){
+    var saved = storageSafeGet("rt-geography-state");
+    if(saved && saved.teams && saved.teams.length){ state = saved; }
+  }
+
+  /* ---------------- Hot update support ---------------- */
+  function snapshot(){ return state; }
+  function boot(initial){
+    if(initial) state = initial; else loadState();
+    renderScoreboard(); renderBoard();
+    if(state.started){ setupOverlay.hidden = true; }
+    else {
+      teamCountChoice = state.teams.length || 2;
+      renderNumTeams(); renderSetupNames();
+      setupOverlay.hidden = false;
+    }
+  }
+  if(window.claude && window.claude.hot){
+    window.claude.hot.snapshot(snapshot);
+    if(window.claude.hot.ready){ window.claude.hot.ready(boot); } else { boot(window.claude.hot.data || null); }
+  } else {
+    boot(null);
+  }
+})();
+</script>
