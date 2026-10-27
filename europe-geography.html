@@ -19,7 +19,7 @@
     <div class="topbar-actions">
       <a class="ghost" href="index.html" style="display:inline-block;border-radius:6px;border:1.5px solid var(--ink-dim);color:var(--ink-dim);padding:9px 14px;font-size:14px;font-weight:600;text-decoration:none;font-family:'Josefin Sans',sans-serif;">&#8592; Main Menu</a>
       <button id="btnSound" aria-pressed="true">&#128266; Sound On</button>
-      <button id="btnReset">Reset Board</button>
+      <button id="btnReset">Restart</button>
       <button id="btnNewTeams">New Game</button>
     </div>
   </div>
@@ -32,17 +32,14 @@
 
 <div class="overlay" id="setupOverlay">
   <div class="panel-box">
-    <h2 style="color:var(--burgundy);margin-bottom:10px;">Geography: Europe &amp; the Great War</h2>
+    <h2 style="color:var(--gold-bright);margin-bottom:10px;">Geography: Europe &amp; the Great War</h2>
+    <p style="color:var(--ink-dim);font-family:'Josefin Sans',sans-serif;font-size:14px;margin:-4px 0 18px;">A solo review quiz &mdash; pick your question set, answer each clue with multiple choice, and keep your score.</p>
     <div class="setup-row">
       <label>Choose a question set</label>
       <div class="choice-row" id="setPicker"></div>
     </div>
     <div class="setup-row">
-      <label>How many are playing?</label>
-      <div class="choice-row" id="numTeams"></div>
-    </div>
-    <div class="setup-row">
-      <label>Name(s)</label>
+      <label>Your name (optional)</label>
       <div id="setupNames"></div>
     </div>
     <div class="stage-actions">
@@ -55,76 +52,80 @@
   <div class="panel-box" id="clueStage"></div>
 </div>
 
+<div class="overlay" id="gameOverOverlay" hidden>
+  <div class="panel-box" id="gameOverStage"></div>
+</div>
+
 <script src="map-data.js"></script>
 <script>
 var STORAGE_KEY = "rt-geo-europe-v1";
 var NW_EUROPE = ["United Kingdom","Ireland","Germany","Netherlands","Belgium","France","Denmark","Sweden","Norway"];
 var SE_EUROPE = ["Italy","Poland","Russia","Romania","Bulgaria","Greece","Serbia","Croatia","Slovenia","Bosnia and Herzegovina","North Macedonia","Montenegro","Ukraine","Belarus","Moldova"];
-var QUOTA_LEGEND = [ {color:"var(--map-land-hi)", label:"Generous 1924 quota (N/W Europe)"}, {color:"var(--burgundy-bright)", label:"Severely restricted (S/E Europe)"} ];
+var QUOTA_LEGEND = [ {color:"var(--map-land-hi)", label:"Generous 1924 quota"}, {color:"var(--burgundy-bright)", label:"Severely restricted quota"} ];
 var UBOAT_ZONE = [ { cx: 90, cy: 270, rx: 120, ry: 95, label: "U-boat danger zone" } ];
 
 var GAME_SETS = [
   {
     id: "setA", label: "Set 1",
     categories: [
-      { name: "The Western Front", clues: [
-        { clue: "This French fortress city on the Meuse River endured a brutal ten-month German siege in 1916, becoming a symbol of French endurance.", answer: "What is Verdun?",
+      { name: "The Western Front", pool: ["Verdun", "the Argonne Forest", "Belleau Wood", "the Somme", "Compiègne", "Paris"], clues: [
+        { clue: "This French fortress city on the Meuse River endured a brutal ten-month German siege in 1916, becoming a symbol of French endurance.", correct: "Verdun",
           map: { region:"europe", alt:"Verdun, France", highlight:["France"], pins:[{name:"Verdun",label:"Verdun"}] } },
-        { clue: "American troops helped turn back a major German offensive in this forest in eastern France during the fall of 1918.", answer: "What is the Argonne Forest?",
+        { clue: "American troops helped turn back a major German offensive in this forest in eastern France during the fall of 1918.", correct: "the Argonne Forest",
           map: { region:"europe", alt:"Argonne Forest, France", highlight:["France"], pins:[{name:"Argonne Forest",label:"Argonne Forest"}] } },
-        { clue: "U.S. Marines fought one of their first major World War I battles at this wooded site near Paris in June 1918.", answer: "What is Belleau Wood?",
+        { clue: "U.S. Marines fought one of their first major World War I battles at this wooded site near Paris in June 1918.", correct: "Belleau Wood",
           map: { region:"europe", alt:"Belleau Wood, France", highlight:["France"], pins:[{name:"Belleau Wood",label:"Belleau Wood"}] } },
-        { clue: "Fought in 1916 along this river in northern France, this battle produced over a million casualties among British, French, and German forces.", answer: "What is the Battle of the Somme?",
+        { clue: "Fought in 1916 along this river in northern France, this battle produced over a million casualties among British, French, and German forces.", correct: "the Somme",
           map: { region:"europe", alt:"The Somme, France", highlight:["France"], pins:[{name:"Somme",label:"Somme"}] } },
-        { clue: "The armistice ending World War I was signed in a railway car in this French town in November 1918.", answer: "What is Compiègne?",
+        { clue: "The armistice ending World War I was signed in a railway car in this French town in November 1918.", correct: "Compiègne",
           map: { region:"europe", alt:"Compiegne, France", highlight:["France"], pins:[{name:"Compiegne",label:"Compiegne"}] } }
       ]},
-      { name: "Alliance System Before the War", clues: [
-        { clue: "Germany and this neighboring empire, uniting two monarchies under one crown, formed the core of the Central Powers.", answer: "What is Austria-Hungary?",
+      { name: "Alliance System Before the War", pool: ["Germany", "Austria-Hungary", "Turkey", "the United Kingdom", "Serbia", "Mexico", "Russia", "Italy"], clues: [
+        { clue: "Germany and this neighboring empire, uniting two monarchies under one crown, formed the core of the Central Powers.", correct: "Austria-Hungary",
           map: { region:"europe", alt:"Germany, Austria, and Hungary", highlight:["Germany","Austria","Hungary"] } },
-        { clue: "The Ottoman Empire, with territory in this modern-day country, joined the Central Powers in 1914.", answer: "What is Turkey?",
+        { clue: "The Ottoman Empire, with territory in this modern-day country, joined the Central Powers in 1914.", correct: "Turkey",
           map: { region:"europe", alt:"Turkey (Ottoman Empire)", highlight:["Turkey"], pins:[{name:"Istanbul",label:"Istanbul"}] } },
-        { clue: "France, Russia, and this island nation formed the core of the Allied Powers before the United States entered the war.", answer: "What is the United Kingdom (Great Britain)?",
+        { clue: "France, Russia, and this island nation formed the core of the Allied Powers before the United States entered the war.", correct: "the United Kingdom",
           map: { region:"europe", alt:"France, Russia, and the United Kingdom", highlight:["France","Russia","United Kingdom"] } },
-        { clue: "An assassination in the capital of this Balkan nation set off the alliance system's chain reaction into world war in the summer of 1914.", answer: "What is Serbia?",
+        { clue: "An assassination in the capital of this Balkan nation set off the alliance system's chain reaction into world war in the summer of 1914.", correct: "Serbia",
           map: { region:"europe", alt:"Serbia", highlight:["Serbia"], pins:[{name:"Belgrade",label:"Belgrade"}] } },
-        { clue: "In 1917, Germany's Zimmermann Telegram proposed a secret alliance with this country, offering it parts of the American Southwest if it attacked the United States.", answer: "What is Mexico?",
+        { clue: "In 1917, Germany's Zimmermann Telegram proposed a secret alliance with this country, offering it parts of the American Southwest if it attacked the United States.", correct: "Mexico",
           map: { region:"atlantic", alt:"Germany and Mexico, Zimmermann Telegram", highlight:["Germany","Mexico"], routes:[{from:"Berlin",to:"Mexico City"}], pins:[{name:"Berlin",label:"Berlin"},{name:"Mexico City",label:"Mexico City",labelBelow:true}] } }
       ]},
-      { name: "The U-boat War & the Lusitania's Route", clues: [
-        { clue: "Germany's use of this type of unrestricted naval warfare meant any ship, including unarmed passenger liners, could be sunk without warning near Britain's coast.", answer: "What is submarine (U-boat) warfare?",
+      { name: "The U-boat War & the Lusitania's Route", pool: ["submarine (U-boat) warfare", "Ireland", "the United Kingdom", "the United States", "the sinking of the Lusitania", "Germany"], clues: [
+        { clue: "Germany's use of this type of unrestricted naval warfare meant any ship, including unarmed passenger liners, could be sunk without warning near Britain's coast.", correct: "submarine (U-boat) warfare",
           map: { region:"europe", alt:"U-boat danger zone near the British Isles", highlight:["United Kingdom","Ireland"], zones: UBOAT_ZONE } },
-        { clue: "A German U-boat sank the British liner Lusitania off the coast of this island nation in 1915, killing over a hundred Americans.", answer: "What is Ireland?",
+        { clue: "A German U-boat sank the British liner Lusitania off the coast of this island nation in 1915, killing over a hundred Americans.", correct: "Ireland",
           map: { region:"europe", alt:"Lusitania sinking site near Ireland", highlight:["Ireland"], pins:[{name:"Lusitania sinking site",label:"Sunk here, 1915"}] } },
-        { clue: "The Lusitania had sailed from New York and was bound for this country when a German torpedo sank it.", answer: "What is the United Kingdom (England)?",
+        { clue: "The Lusitania had sailed from New York and was bound for this country when a German torpedo sank it.", correct: "the United Kingdom",
           map: { region:"europe", alt:"United Kingdom, Lusitania's destination", highlight:["United Kingdom"], pins:[{name:"London",label:"London"}] } },
-        { clue: "Germany's resumption of unrestricted submarine warfare in early 1917 directly helped push this neutral nation to declare war on the Central Powers.", answer: "What is the United States?",
+        { clue: "Germany's resumption of unrestricted submarine warfare in early 1917 directly helped push this neutral nation to declare war on the Central Powers.", correct: "the United States",
           map: { region:"europe", alt:"U-boat zone that drew the US into the war", highlight:["Germany","Ireland"], zones: UBOAT_ZONE } },
-        { clue: "The waters around this island nation, where the Lusitania went down, remained one of the deadliest zones of German U-boat activity through the rest of the war.", answer: "What is Ireland?",
+        { clue: "The waters around this island nation, where the Lusitania went down, remained one of the deadliest zones of German U-boat activity through the rest of the war.", correct: "Ireland",
           map: { region:"europe", alt:"Lusitania sinking site and U-boat zone", highlight:["Ireland"], pins:[{name:"Lusitania sinking site",label:"Sunk here, 1915"}], zones: UBOAT_ZONE } }
       ]},
-      { name: "Versailles' New Borders", clues: [
-        { clue: "The Treaty of Versailles recreated this Eastern European nation, which had been divided among Germany, Austria-Hungary, and Russia for over a century.", answer: "What is Poland?",
+      { name: "Versailles' New Borders", pool: ["Poland", "Czechoslovakia", "Austria-Hungary", "Austria", "the Palace of Versailles", "East Prussia", "Germany"], clues: [
+        { clue: "The Treaty of Versailles recreated this Eastern European nation, which had been divided among Germany, Austria-Hungary, and Russia for over a century.", correct: "Poland",
           map: { region:"europe", alt:"Poland", highlight:["Poland"], pins:[{name:"Warsaw",label:"Warsaw"}] } },
-        { clue: "Czechs and Slovaks were combined into this brand-new nation, carved out of the former Austro-Hungarian Empire.", answer: "What is Czechoslovakia?",
+        { clue: "Czechs and Slovaks were combined into this brand-new nation, carved out of the former Austro-Hungarian Empire.", correct: "Czechoslovakia",
           map: { region:"europe", alt:"Czechoslovakia", highlight:["Czechia","Slovakia"] } },
-        { clue: "This defeated empire was broken apart entirely, losing territory to new states like Czechoslovakia, Poland, and Yugoslavia.", answer: "What is Austria-Hungary?",
+        { clue: "This defeated empire was broken apart entirely, losing territory to new states like Czechoslovakia, Poland, and Yugoslavia.", correct: "Austria-Hungary",
           map: { region:"europe", alt:"Austria and Hungary", highlight:["Austria","Hungary"], pins:[{name:"Vienna",label:"Vienna"}] } },
-        { clue: "The treaty was signed in this palace outside Paris, giving the settlement its name.", answer: "What is the Palace of Versailles?",
+        { clue: "The treaty was signed in this palace outside Paris, giving the settlement its name.", correct: "the Palace of Versailles",
           map: { region:"europe", alt:"Versailles, France", highlight:["France"], pins:[{name:"Versailles",label:"Versailles"}] } },
-        { clue: "A new strip of Polish land reaching the Baltic Sea, called the Polish Corridor, cut off this German region from the rest of the country.", answer: "What is East Prussia?",
+        { clue: "A new strip of Polish land reaching the Baltic Sea, called the Polish Corridor, cut off this German region from the rest of the country.", correct: "East Prussia",
           map: { region:"europe", alt:"Germany and Poland, Polish Corridor", highlight:["Germany","Poland"] } }
       ]},
-      { name: "1924 Immigration Quotas by Region", clues: [
-        { clue: "The Immigration Act of 1924 set generous quotas for immigrants from this region of Europe, including Britain, Germany, and Scandinavia.", answer: "What is Northern and Western Europe?",
+      { name: "1924 Immigration Quotas by Region", pool: ["Northern and Western Europe", "Southern and Eastern Europe", "Italy", "Northern/Western Europe and Southern/Eastern Europe", "Germany", "Russia"], clues: [
+        { clue: "The Immigration Act of 1924 set generous quotas for immigrants from this region of Europe, including Britain, Germany, and Scandinavia.", correct: "Northern and Western Europe",
           map: { region:"europe", alt:"Favored vs restricted regions under the 1924 quota law", highlight: NW_EUROPE, highlightAlt: SE_EUROPE, legend: QUOTA_LEGEND } },
-        { clue: "The 1924 law set very small quotas for immigrants from this part of Europe, including Italy, Poland, and Russia, reflecting American nativist bias.", answer: "What is Southern and Eastern Europe?",
+        { clue: "The 1924 law set very small quotas for immigrants from this part of Europe, including Italy, Poland, and Russia, reflecting American nativist bias.", correct: "Southern and Eastern Europe",
           map: { region:"europe", alt:"Favored vs restricted regions under the 1924 quota law", highlight: SE_EUROPE, highlightAlt: NW_EUROPE, legend: QUOTA_LEGEND } },
-        { clue: "This heavily Catholic, densely populated Southern European nation faced some of the strictest 1924 quota limits despite having sent millions of immigrants to the US in prior decades.", answer: "What is Italy?",
+        { clue: "This heavily Catholic, densely populated Southern European nation faced some of the strictest 1924 quota limits despite having sent millions of immigrants to the US in prior decades.", correct: "Italy",
           map: { region:"europe", alt:"Italy", highlight:["Italy"], pins:[{name:"Rome",label:"Rome"}] } },
-        { clue: "The 1924 quotas were calculated using an old census, deliberately favoring immigrants from this part of Europe over more recent arrivals from the south and east.", answer: "What is Northern and Western Europe?",
+        { clue: "The 1924 quotas were calculated using an old census, deliberately favoring immigrants from this part of Europe over more recent arrivals from the south and east.", correct: "Northern and Western Europe",
           map: { region:"europe", alt:"Favored vs restricted regions under the 1924 quota law", highlight: NW_EUROPE, highlightAlt: SE_EUROPE, legend: QUOTA_LEGEND } },
-        { clue: "Name the two broad regions of Europe the 1924 Immigration Act treated so differently: one given generous quotas, the other restricted to a trickle.", answer: "What are Northern/Western Europe and Southern/Eastern Europe?",
+        { clue: "Name the two broad regions of Europe the 1924 Immigration Act treated so differently: one given generous quotas, the other restricted to a trickle.", correct: "Northern/Western Europe and Southern/Eastern Europe",
           map: { region:"europe", alt:"Favored vs restricted regions under the 1924 quota law", highlight: NW_EUROPE, highlightAlt: SE_EUROPE, legend: QUOTA_LEGEND } }
       ]}
     ]
@@ -132,64 +133,64 @@ var GAME_SETS = [
   {
     id: "setB", label: "Set 2",
     categories: [
-      { name: "The Western Front", clues: [
-        { clue: "American troops joined French forces in the Meuse-Argonne Offensive, fought in this forested region of eastern France.", answer: "What is the Argonne Forest?",
+      { name: "The Western Front", pool: ["Verdun", "the Argonne Forest", "Belleau Wood", "the Somme", "Compiègne", "Paris"], clues: [
+        { clue: "American troops joined French forces in the Meuse-Argonne Offensive, fought in this forested region of eastern France.", correct: "the Argonne Forest",
           map: { region:"europe", alt:"Argonne Forest, France", highlight:["France"], pins:[{name:"Argonne Forest",label:"Argonne Forest"}] } },
-        { clue: "This French city on the Meuse River endured a ten-month German siege in 1916 that became a symbol of French sacrifice.", answer: "What is Verdun?",
+        { clue: "This French city on the Meuse River endured a ten-month German siege in 1916 that became a symbol of French sacrifice.", correct: "Verdun",
           map: { region:"europe", alt:"Verdun, France", highlight:["France"], pins:[{name:"Verdun",label:"Verdun"}] } },
-        { clue: "U.S. Marines helped stop a German advance toward Paris at this small wood in June 1918, later renamed in their honor.", answer: "What is Belleau Wood?",
+        { clue: "U.S. Marines helped stop a German advance toward Paris at this small wood in June 1918, later renamed in their honor.", correct: "Belleau Wood",
           map: { region:"europe", alt:"Belleau Wood, France", highlight:["France"], pins:[{name:"Belleau Wood",label:"Belleau Wood"}] } },
-        { clue: "Fought in 1916 along this river in northern France, this battle became infamous for massive casualties relative to the ground gained.", answer: "What is the Somme?",
+        { clue: "Fought in 1916 along this river in northern France, this battle became infamous for massive casualties relative to the ground gained.", correct: "the Somme",
           map: { region:"europe", alt:"The Somme, France", highlight:["France"], pins:[{name:"Somme",label:"Somme"}] } },
-        { clue: "Germany signed the armistice ending the fighting inside a railway carriage in this French town north of Paris.", answer: "What is Compiègne?",
+        { clue: "Germany signed the armistice ending the fighting inside a railway carriage in this French town north of Paris.", correct: "Compiègne",
           map: { region:"europe", alt:"Compiegne, France", highlight:["France"], pins:[{name:"Compiegne",label:"Compiegne"}] } }
       ]},
-      { name: "Alliance System Before the War", clues: [
-        { clue: "Austria-Hungary and this country formed the backbone of the Central Powers.", answer: "What is Germany?",
+      { name: "Alliance System Before the War", pool: ["Germany", "Austria-Hungary", "Turkey", "the United Kingdom", "Serbia", "Mexico", "Russia", "Italy"], clues: [
+        { clue: "Austria-Hungary and this country formed the backbone of the Central Powers.", correct: "Germany",
           map: { region:"europe", alt:"Germany, Austria, and Hungary", highlight:["Germany","Austria","Hungary"] } },
-        { clue: "This vast empire anchored the Allied Powers on Germany's eastern border, before withdrawing from the war after its 1917 revolution.", answer: "What is Russia?",
+        { clue: "This vast empire anchored the Allied Powers on Germany's eastern border, before withdrawing from the war after its 1917 revolution.", correct: "Russia",
           map: { region:"europe", alt:"Russia", highlight:["Russia"], pins:[{name:"Moscow",label:"Moscow"}] } },
-        { clue: "The Ottoman Empire, based in what is now this country, joined Germany and Austria-Hungary as a Central Power.", answer: "What is Turkey?",
+        { clue: "The Ottoman Empire, based in what is now this country, joined Germany and Austria-Hungary as a Central Power.", correct: "Turkey",
           map: { region:"europe", alt:"Turkey (Ottoman Empire)", highlight:["Turkey"], pins:[{name:"Istanbul",label:"Istanbul"}] } },
-        { clue: "This small Balkan nation's standoff with Austria-Hungary, following an assassination in its region, set off the alliance system's chain reaction.", answer: "What is Serbia?",
+        { clue: "This small Balkan nation's standoff with Austria-Hungary, following an assassination in its region, set off the alliance system's chain reaction.", correct: "Serbia",
           map: { region:"europe", alt:"Serbia", highlight:["Serbia"], pins:[{name:"Belgrade",label:"Belgrade"}] } },
-        { clue: "Germany's 1917 Zimmermann Telegram tried to draw this country into war against the United States by promising it Texas, New Mexico, and Arizona.", answer: "What is Mexico?",
+        { clue: "Germany's 1917 Zimmermann Telegram tried to draw this country into war against the United States by promising it Texas, New Mexico, and Arizona.", correct: "Mexico",
           map: { region:"atlantic", alt:"Germany and Mexico, Zimmermann Telegram", highlight:["Germany","Mexico"], routes:[{from:"Berlin",to:"Mexico City"}], pins:[{name:"Berlin",label:"Berlin"},{name:"Mexico City",label:"Mexico City",labelBelow:true}] } }
       ]},
-      { name: "The U-boat War & the Lusitania's Route", clues: [
-        { clue: "Germany's U-boat attacks on merchant and passenger ships, without warning and without regard for neutral flags, defined this type of warfare.", answer: "What is submarine (U-boat) warfare?",
+      { name: "The U-boat War & the Lusitania's Route", pool: ["submarine (U-boat) warfare", "Ireland", "the United Kingdom", "the United States", "the sinking of the Lusitania", "Germany"], clues: [
+        { clue: "Germany's U-boat attacks on merchant and passenger ships, without warning and without regard for neutral flags, defined this type of warfare.", correct: "submarine (U-boat) warfare",
           map: { region:"europe", alt:"U-boat danger zone near the British Isles", highlight:["United Kingdom","Ireland"], zones: UBOAT_ZONE } },
-        { clue: "In 1915, a German U-boat torpedoed the passenger liner Lusitania just off the coast of this country, killing 128 Americans.", answer: "What is Ireland?",
+        { clue: "In 1915, a German U-boat torpedoed the passenger liner Lusitania just off the coast of this country, killing 128 Americans.", correct: "Ireland",
           map: { region:"europe", alt:"Lusitania sinking site near Ireland", highlight:["Ireland"], pins:[{name:"Lusitania sinking site",label:"Sunk here, 1915"}] } },
-        { clue: "The Lusitania had departed from New York and was headed toward this country when it was sunk.", answer: "What is the United Kingdom?",
+        { clue: "The Lusitania had departed from New York and was headed toward this country when it was sunk.", correct: "the United Kingdom",
           map: { region:"europe", alt:"United Kingdom, Lusitania's destination", highlight:["United Kingdom"], pins:[{name:"London",label:"London"}] } },
-        { clue: "This sinking, combined with the Zimmermann Telegram two years later, helped convince American public opinion to support declaring war on Germany.", answer: "What is the sinking of the Lusitania?",
+        { clue: "This sinking, combined with the Zimmermann Telegram two years later, helped convince American public opinion to support declaring war on Germany.", correct: "the sinking of the Lusitania",
           map: { region:"europe", alt:"Lusitania sinking site near Ireland", highlight:["Ireland"], pins:[{name:"Lusitania sinking site",label:"Sunk here, 1915"}] } },
-        { clue: "German U-boats prowled the waters near this island nation, sinking the Lusitania there in 1915 and continuing attacks on Atlantic shipping through the war.", answer: "What is Ireland?",
+        { clue: "German U-boats prowled the waters near this island nation, sinking the Lusitania there in 1915 and continuing attacks on Atlantic shipping through the war.", correct: "Ireland",
           map: { region:"europe", alt:"Lusitania sinking site and U-boat zone", highlight:["Ireland"], pins:[{name:"Lusitania sinking site",label:"Sunk here, 1915"}], zones: UBOAT_ZONE } }
       ]},
-      { name: "Versailles' New Borders", clues: [
-        { clue: "This nation, wiped off the map in the 18th century by its neighbors, was restored by the Treaty of Versailles with access to the Baltic Sea.", answer: "What is Poland?",
+      { name: "Versailles' New Borders", pool: ["Poland", "Czechoslovakia", "Austria-Hungary", "Austria", "the Palace of Versailles", "East Prussia", "Germany"], clues: [
+        { clue: "This nation, wiped off the map in the 18th century by its neighbors, was restored by the Treaty of Versailles with access to the Baltic Sea.", correct: "Poland",
           map: { region:"europe", alt:"Poland", highlight:["Poland"], pins:[{name:"Warsaw",label:"Warsaw"}] } },
-        { clue: "The Treaty of Versailles helped create this new nation, uniting two Slavic peoples formerly ruled by Austria-Hungary.", answer: "What is Czechoslovakia?",
+        { clue: "The Treaty of Versailles helped create this new nation, uniting two Slavic peoples formerly ruled by Austria-Hungary.", correct: "Czechoslovakia",
           map: { region:"europe", alt:"Czechoslovakia", highlight:["Czechia","Slovakia"] } },
-        { clue: "Stripped of most of its territory and limited to a small army, this nation was reduced to a tiny remainder of its former empire.", answer: "What is Austria?",
+        { clue: "Stripped of most of its territory and limited to a small army, this nation was reduced to a tiny remainder of its former empire.", correct: "Austria",
           map: { region:"europe", alt:"Austria and Hungary", highlight:["Austria","Hungary"], pins:[{name:"Vienna",label:"Vienna"}] } },
-        { clue: "Diplomats gathered at this grand palace near Paris to negotiate and sign the treaty ending World War I.", answer: "What is the Palace of Versailles?",
+        { clue: "Diplomats gathered at this grand palace near Paris to negotiate and sign the treaty ending World War I.", correct: "the Palace of Versailles",
           map: { region:"europe", alt:"Versailles, France", highlight:["France"], pins:[{name:"Versailles",label:"Versailles"}] } },
-        { clue: "A new corridor of Polish land to the Baltic Sea separated this German region from the rest of Germany, fueling resentment that contributed to future conflict.", answer: "What is East Prussia?",
+        { clue: "A new corridor of Polish land to the Baltic Sea separated this German region from the rest of Germany, fueling resentment that contributed to future conflict.", correct: "East Prussia",
           map: { region:"europe", alt:"Germany and Poland, Polish Corridor", highlight:["Germany","Poland"] } }
       ]},
-      { name: "1924 Immigration Quotas by Region", clues: [
-        { clue: "Quotas under the 1924 Immigration Act were generous for immigrants from this part of Europe, home to Britain, Germany, and the Scandinavian countries.", answer: "What is Northern and Western Europe?",
+      { name: "1924 Immigration Quotas by Region", pool: ["Northern and Western Europe", "Southern and Eastern Europe", "Italy", "Northern/Western Europe and Southern/Eastern Europe", "Germany", "Russia"], clues: [
+        { clue: "Quotas under the 1924 Immigration Act were generous for immigrants from this part of Europe, home to Britain, Germany, and the Scandinavian countries.", correct: "Northern and Western Europe",
           map: { region:"europe", alt:"Favored vs restricted regions under the 1924 quota law", highlight: NW_EUROPE, highlightAlt: SE_EUROPE, legend: QUOTA_LEGEND } },
-        { clue: "Poland, Russia, and the Balkan nations fell into this sharply restricted immigration category under the 1924 law.", answer: "What is Southern and Eastern Europe?",
+        { clue: "Poland, Russia, and the Balkan nations fell into this sharply restricted immigration category under the 1924 law.", correct: "Southern and Eastern Europe",
           map: { region:"europe", alt:"Favored vs restricted regions under the 1924 quota law", highlight: SE_EUROPE, highlightAlt: NW_EUROPE, legend: QUOTA_LEGEND } },
-        { clue: "Despite sending waves of immigrants to the US in the early 1900s, this Southern European nation received one of the smallest quotas in 1924.", answer: "What is Italy?",
+        { clue: "Despite sending waves of immigrants to the US in the early 1900s, this Southern European nation received one of the smallest quotas in 1924.", correct: "Italy",
           map: { region:"europe", alt:"Italy", highlight:["Italy"], pins:[{name:"Rome",label:"Rome"}] } },
-        { clue: "By basing quotas on an older census rather than more recent population data, Congress intentionally favored older immigrant groups from this part of Europe.", answer: "What is Northern and Western Europe?",
+        { clue: "By basing quotas on an older census rather than more recent population data, Congress intentionally favored older immigrant groups from this part of Europe.", correct: "Northern and Western Europe",
           map: { region:"europe", alt:"Favored vs restricted regions under the 1924 quota law", highlight: NW_EUROPE, highlightAlt: SE_EUROPE, legend: QUOTA_LEGEND } },
-        { clue: "Describe the two-tier system created by the 1924 Act: name the favored region and the restricted region of Europe.", answer: "What are Northern/Western Europe (favored) and Southern/Eastern Europe (restricted)?",
+        { clue: "Describe the two-tier system created by the 1924 Act: name the favored region and the restricted region of Europe.", correct: "Northern/Western Europe and Southern/Eastern Europe",
           map: { region:"europe", alt:"Favored vs restricted regions under the 1924 quota law", highlight: NW_EUROPE, highlightAlt: SE_EUROPE, legend: QUOTA_LEGEND } }
       ]}
     ]

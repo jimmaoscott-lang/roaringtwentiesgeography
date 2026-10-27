@@ -1,6 +1,9 @@
-/* Shared Jeopardy-board engine for the Geography games. Each page defines
+/* Shared solo-quiz engine for the Geography games. Each page defines
    GAME_SETS (array of {id,label,categories}) and STORAGE_KEY before loading
-   this file; map-data.js must be loaded first for the REGIONS lookup. */
+   this file; map-data.js must be loaded first for the REGIONS lookup.
+   Each category carries a `pool` of plausible plain-text answers used to
+   build multiple-choice options; each clue carries `correct` (plain text,
+   must appear in its category's pool) instead of a free-response answer. */
 (function(){
   "use strict";
 
@@ -10,6 +13,9 @@
     atlantic: { states: ATLANTIC_STATES, meta: ATLANTIC_META, cities: ATLANTIC_CITIES }
   };
 
+  // Maps are drawn with no city-name or zone-name text labels, only shaded
+  // regions, pin dots, routes, and (non-revealing) legend swatches, so a
+  // multiple-choice clue's map never spells out the answer.
   function buildMapSVG(m){
     if(!m) return "";
     var region = REGIONS[m.region];
@@ -21,7 +27,7 @@
     var zones = m.zones || [];
     var parts = [];
     var uid = "map" + Math.random().toString(36).slice(2,8);
-    parts.push('<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+(m.alt||'Map')+'">');
+    parts.push('<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Map">');
     parts.push('<rect width="100%" height="100%" fill="var(--map-bg)"/>');
     parts.push('<defs><marker id="arrow-'+uid+'" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--gold-bright)"/></marker></defs>');
     for(var name in region.states){
@@ -33,10 +39,7 @@
     parts.push('<path d="'+region.meta.borders+'" fill="none" stroke="var(--map-line)" stroke-width="0.8"/>');
     for(var z=0;z<zones.length;z++){
       var zo = zones[z];
-      parts.push('<ellipse cx="'+zo.cx+'" cy="'+zo.cy+'" rx="'+zo.rx+'" ry="'+zo.ry+'" fill="var(--burgundy-bright)" fill-opacity="0.18" stroke="var(--burgundy-bright)" stroke-width="1.5" stroke-dasharray="5 4"/>');
-      if(zo.label){
-        parts.push('<text x="'+zo.cx+'" y="'+(zo.cy+zo.ry+14)+'" text-anchor="middle" font-family="Josefin Sans, sans-serif" font-size="10" font-weight="600" fill="var(--ink)" paint-order="stroke" stroke="var(--map-bg)" stroke-width="3">'+zo.label+'</text>');
-      }
+      parts.push('<ellipse cx="'+zo.cx+'" cy="'+zo.cy+'" rx="'+zo.rx+'" ry="'+zo.ry+'" fill="var(--burgundy-bright)" fill-opacity="0.2" stroke="var(--burgundy-bright)" stroke-width="1.5" stroke-dasharray="5 4"/>');
     }
     for(var r=0;r<routes.length;r++){
       var from = region.cities[routes[r].from], to = region.cities[routes[r].to];
@@ -48,12 +51,23 @@
       var pin = pins[p];
       var c = region.cities[pin.name];
       if(!c) continue;
-      parts.push('<circle cx="'+c.x+'" cy="'+c.y+'" r="6" fill="var(--burgundy-bright)" stroke="var(--map-bg)" stroke-width="2"/>');
-      var ly = pin.labelBelow ? c.y+16 : c.y-10;
-      parts.push('<text x="'+c.x+'" y="'+ly+'" text-anchor="middle" font-family="Josefin Sans, sans-serif" font-size="11" font-weight="600" fill="var(--ink)" paint-order="stroke" stroke="var(--map-bg)" stroke-width="3">'+(pin.label||pin.name)+'</text>');
+      parts.push('<circle cx="'+c.x+'" cy="'+c.y+'" r="6.5" fill="var(--burgundy-bright)" stroke="var(--map-bg)" stroke-width="2"/>');
     }
     parts.push('</svg>');
     return parts.join('');
+  }
+
+  function shuffle(arr){
+    for(var i=arr.length-1;i>0;i--){
+      var j = Math.floor(Math.random()*(i+1));
+      var t = arr[i]; arr[i]=arr[j]; arr[j]=t;
+    }
+    return arr;
+  }
+  function buildChoices(pool, correct){
+    var distractors = shuffle(pool.filter(function(p){ return p !== correct; }));
+    var options = shuffle(distractors.slice(0,3).concat([correct]));
+    return options;
   }
 
   var VALUES = [100,200,300,400,500];
@@ -93,6 +107,7 @@
   function sfxTick(){ tone(1046,0,0.045,"square",0.06); }
   function sfxTimeUp(){ tone(220,0,0.3,"sawtooth",0.18); tone(174.6,0.12,0.35,"sawtooth",0.18); }
   function sfxDailyDouble(){ var notes=[392,523.25,659.25,784,987.77]; for(var i=0;i<notes.length;i++){ tone(notes[i], i*0.12, 0.3, "triangle", 0.2); } }
+  function sfxFanfare(){ var notes=[523.25,659.25,784,1046.5]; for(var i=0;i<notes.length;i++){ tone(notes[i], i*0.14, 0.4, "triangle", 0.2); } }
 
   function pluckTone(freq, start, dur, gain){
     var c = ctx(); if(!c || !soundOn || !freq) return;
@@ -132,10 +147,10 @@
   function startThinkingMusic(){ stopThinkingMusic(); thinkStep=0; thinkProgress=0; scheduleThink(); }
   function stopThinkingMusic(){ if(thinkTimeoutId){ clearTimeout(thinkTimeoutId); thinkTimeoutId=null; } }
 
-  /* ---------------- State ---------------- */
+  /* ---------------- State (solo only) ---------------- */
+  var TOTAL_TILES = VALUES.length * CATEGORIES.length;
   var state = {
-    teams: [ {name:"Team 1", score:0}, {name:"Team 2", score:0} ],
-    activeTeam: 0, used: {}, dailyDoubles: [], started: false, setId: GAME_SETS[0].id
+    name: "", score: 0, used: {}, dailyDoubles: [], started: false, setId: GAME_SETS[0].id
   };
 
   function storageSafeGet(key){ try{ var v=localStorage.getItem(key); return v?JSON.parse(v):null; }catch(e){ return null; } }
@@ -157,46 +172,30 @@
   var scoreboardEl = document.getElementById("scoreboard");
   function renderScoreboard(){
     scoreboardEl.innerHTML = "";
-    state.teams.forEach(function(team,i){
-      var card = document.createElement("div");
-      card.className = "team-card" + (i===state.activeTeam ? " active" : "");
-      var nameRow = document.createElement("div");
-      nameRow.className = "team-name-row";
-      var nameInput = document.createElement("input");
-      nameInput.className = "team-name"; nameInput.value = team.name;
-      nameInput.setAttribute("aria-label","Team "+(i+1)+" name");
-      nameInput.addEventListener("change", function(){
-        state.teams[i].name = nameInput.value.trim() || ("Team "+(i+1));
-        saveState(); renderScoreboard();
-      });
-      nameRow.appendChild(nameInput); card.appendChild(nameRow);
-      var scoreEl = document.createElement("div");
-      scoreEl.className = "team-score" + (team.score<0 ? " neg" : "");
-      scoreEl.textContent = "$" + team.score;
-      card.appendChild(scoreEl);
-      if(state.teams.length > 1){
-        var btnRow = document.createElement("div"); btnRow.className = "score-btns";
-        var minus = document.createElement("button"); minus.textContent = "−100";
-        minus.addEventListener("click", function(){ adjustScore(i,-100); });
-        var plus = document.createElement("button"); plus.textContent = "+100";
-        plus.addEventListener("click", function(){ adjustScore(i,100); });
-        var turn = document.createElement("button"); turn.textContent = "Turn"; turn.className = "ghost";
-        turn.addEventListener("click", function(){ state.activeTeam = i; saveState(); renderScoreboard(); });
-        btnRow.appendChild(minus); btnRow.appendChild(plus); btnRow.appendChild(turn);
-        card.appendChild(btnRow);
-      } else {
-        var btnRow2 = document.createElement("div"); btnRow2.className = "score-btns";
-        var minus2 = document.createElement("button"); minus2.textContent = "−100";
-        minus2.addEventListener("click", function(){ adjustScore(i,-100); });
-        var plus2 = document.createElement("button"); plus2.textContent = "+100";
-        plus2.addEventListener("click", function(){ adjustScore(i,100); });
-        btnRow2.appendChild(minus2); btnRow2.appendChild(plus2);
-        card.appendChild(btnRow2);
-      }
-      scoreboardEl.appendChild(card);
+    var card = document.createElement("div");
+    card.className = "team-card active";
+    var nameRow = document.createElement("div");
+    nameRow.className = "team-name-row";
+    var nameInput = document.createElement("input");
+    nameInput.className = "team-name"; nameInput.value = state.name || "";
+    nameInput.placeholder = "Your name";
+    nameInput.setAttribute("aria-label","Your name");
+    nameInput.addEventListener("change", function(){
+      state.name = nameInput.value.trim();
+      saveState();
     });
+    nameRow.appendChild(nameInput); card.appendChild(nameRow);
+    var scoreEl = document.createElement("div");
+    scoreEl.className = "team-score" + (state.score<0 ? " neg" : "");
+    scoreEl.textContent = "$" + state.score;
+    card.appendChild(scoreEl);
+    var tilesLeft = document.createElement("div");
+    tilesLeft.style.cssText = "font-size:12px;color:var(--ink-dim);margin-top:4px;font-family:'Josefin Sans',sans-serif;";
+    var usedCount = Object.keys(state.used).length;
+    tilesLeft.textContent = usedCount + " / " + TOTAL_TILES + " clues answered";
+    card.appendChild(tilesLeft);
+    scoreboardEl.appendChild(card);
   }
-  function adjustScore(i,delta){ state.teams[i].score += delta; saveState(); renderScoreboard(); }
 
   /* ---------------- Board ---------------- */
   var boardEl = document.getElementById("board");
@@ -245,13 +244,12 @@
 
   function renderDailyDoubleWager(c,v,key,data,baseValue){
     sfxDailyDouble(); clearTimer();
-    var team = state.teams[state.activeTeam];
-    var maxWager = Math.max(baseValue*2, Math.max(500, team.score));
+    var maxWager = Math.max(baseValue*2, Math.max(500, state.score));
     clueStage.innerHTML =
       '<div class="dd-banner">DAILY DOUBLE</div>' +
-      '<p class="hint">' + escapeHtml(team.name) + ', wager your points. Minimum $5, up to $' + maxWager + '.</p>' +
+      '<p class="hint">Wager your points. Minimum $5, up to $' + maxWager + '.</p>' +
       '<input class="wager-input" id="wagerInput" type="number" inputmode="numeric" min="5" max="'+maxWager+'" step="5" value="'+Math.min(baseValue,maxWager)+'" aria-label="Wager amount">' +
-      '<div class="stage-actions"><button class="primary" id="wagerGo">Lock In Wager</button></div>';
+      '<div class="stage-actions" style="justify-content:center;"><button class="primary" id="wagerGo">Lock In Wager</button></div>';
     var input = clueStage.querySelector("#wagerInput");
     clueStage.querySelector("#wagerGo").addEventListener("click", function(){
       var w = parseInt(input.value,10);
@@ -265,12 +263,8 @@
     clearTimer();
     var timeLimit = 25;
     var mapHtml = data.map ? buildMapSVG(data.map) : "";
-    var legendHtml = "";
-    if(data.map && data.map.legend && data.map.legend.length){
-      legendHtml = '<div class="map-legend">' + data.map.legend.map(function(l){
-        return '<span><span class="swatch" style="background:'+l.color+'"></span>'+escapeHtml(l.label)+'</span>';
-      }).join("") + '</div>';
-    }
+    var options = buildChoices(CATEGORIES[c].pool, data.correct);
+    var answered = false;
 
     clueStage.innerHTML =
       '<div class="stage-kicker"><span>' + escapeHtml(CATEGORIES[c].name) + (isDD?' &middot; DAILY DOUBLE':'') + '</span><span>$' + pointValue + '</span></div>' +
@@ -278,18 +272,23 @@
       '<div class="clue-layout' + (mapHtml ? '' : ' no-map') + '">' +
         '<div class="clue-body">' +
           '<div class="clue-text">' + escapeHtml(data.clue) + '</div>' +
-          '<div class="answer-text" id="answerText" hidden>' + escapeHtml(data.answer) + '</div>' +
+          '<div class="choice-grid" id="choiceGrid"></div>' +
+          '<div class="result-banner" id="resultBanner" hidden></div>' +
         '</div>' +
-        (mapHtml ? ('<div class="map-frame">' + mapHtml + '<p class="map-caption">Real boundary data, not a licensed map image</p>' + legendHtml + '</div>') : '') +
+        (mapHtml ? ('<div class="map-frame">' + mapHtml + '<p class="map-caption">Real boundary data, not a licensed map image</p></div>') : '') +
       '</div>' +
-      '<div class="stage-actions" id="stageActions">' +
-        '<button class="primary" id="btnReveal">Reveal Answer</button>' +
-        '<button class="ghost" id="btnSkip">Close (No Score)</button>' +
-      '</div>' +
-      '<div class="award-row" id="awardRow" hidden>' +
-        '<h3>Who answered correctly?</h3>' +
-        '<div class="award-grid" id="awardGrid"></div>' +
+      '<div class="stage-actions" id="stageActions" hidden>' +
+        '<button class="primary" id="btnContinue">Continue</button>' +
       '</div>';
+
+    var choiceGrid = clueStage.querySelector("#choiceGrid");
+    options.forEach(function(opt){
+      var b = document.createElement("button");
+      b.className = "choice-btn";
+      b.textContent = opt;
+      b.addEventListener("click", function(){ lockAnswer(opt, b); });
+      choiceGrid.appendChild(b);
+    });
 
     var fill = clueStage.querySelector("#timerFill");
     var secondsLeft = timeLimit;
@@ -300,40 +299,43 @@
       fill.style.width = pct + "%";
       setThinkProgress((timeLimit-secondsLeft)/timeLimit);
       if(secondsLeft<=5 && secondsLeft>0) sfxTick();
-      if(secondsLeft<=0){ clearTimer(); sfxTimeUp(); }
+      if(secondsLeft<=0){ clearTimer(); sfxTimeUp(); if(!answered) lockAnswer(null, null); }
     }, 1000);
 
-    clueStage.querySelector("#btnReveal").addEventListener("click", function(){
+    function lockAnswer(chosen, btn){
+      if(answered) return;
+      answered = true;
       clearTimer();
-      clueStage.querySelector("#answerText").hidden = false;
-      clueStage.querySelector("#stageActions").hidden = true;
-      var awardRow = clueStage.querySelector("#awardRow");
-      awardRow.hidden = false;
-      var grid = clueStage.querySelector("#awardGrid");
-      grid.innerHTML = "";
-      state.teams.forEach(function(team,i){
-        var b = document.createElement("button");
-        b.textContent = state.teams.length>1 ? team.name : "Got it right";
-        b.addEventListener("click", function(){
-          markUsed(key); adjustScore(i, pointValue); state.activeTeam = i;
-          sfxCorrect(); saveState(); renderBoard(); closeClue();
-        });
-        grid.appendChild(b);
+      var correct = chosen === data.correct;
+      var allBtns = choiceGrid.querySelectorAll(".choice-btn");
+      allBtns.forEach(function(el){
+        el.disabled = true;
+        if(el.textContent === data.correct) el.classList.add("correct");
+        else if(el === btn) el.classList.add("incorrect");
       });
-      var noneBtn = document.createElement("button");
-      noneBtn.className = "ghost";
-      noneBtn.textContent = isDD ? "Wrong (lose wager)" : (state.teams.length>1 ? "No one got it" : "Missed it");
-      noneBtn.addEventListener("click", function(){
-        markUsed(key);
-        if(isDD){ adjustScore(state.activeTeam, -pointValue); }
-        sfxWrong(); saveState(); renderBoard(); closeClue();
+      var banner = clueStage.querySelector("#resultBanner");
+      banner.hidden = false;
+      if(correct){
+        state.score += pointValue;
+        sfxCorrect();
+        banner.className = "result-banner correct";
+        banner.textContent = isDD ? ("Correct! +$" + pointValue + " wagered.") : ("Correct! +$" + pointValue + ".");
+      } else {
+        var delta = isDD ? -pointValue : 0;
+        state.score += delta;
+        sfxWrong();
+        banner.className = "result-banner incorrect";
+        var msg = chosen ? "Not quite." : "Time's up.";
+        msg += " The correct answer is " + data.correct + ".";
+        if(delta) msg += " -$" + pointValue + " wagered.";
+        banner.textContent = msg;
+      }
+      saveState(); renderScoreboard();
+      clueStage.querySelector("#stageActions").hidden = false;
+      clueStage.querySelector("#btnContinue").addEventListener("click", function(){
+        markUsed(key); saveState(); renderScoreboard(); renderBoard(); closeClue(); maybeEndGame();
       });
-      grid.appendChild(noneBtn);
-    });
-
-    clueStage.querySelector("#btnSkip").addEventListener("click", function(){
-      markUsed(key); saveState(); renderBoard(); closeClue();
-    });
+    }
   }
 
   function markUsed(key){ state.used[key] = true; }
@@ -341,12 +343,42 @@
     return String(str).replace(/[&<>"']/g, function(ch){ return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[ch]; });
   }
 
+  function maybeEndGame(){
+    if(Object.keys(state.used).length >= TOTAL_TILES){
+      showGameOver();
+    }
+  }
+
+  /* ---------------- Game over screen ---------------- */
+  var gameOverOverlay = document.getElementById("gameOverOverlay");
+  var gameOverStage = document.getElementById("gameOverStage");
+  function showGameOver(){
+    sfxFanfare();
+    var maxScore = VALUES.reduce(function(a,b){return a+b;},0) * CATEGORIES.length;
+    gameOverStage.innerHTML =
+      '<div class="dd-banner" style="background:var(--emerald);">GAME OVER</div>' +
+      '<h2 style="text-align:center;color:var(--gold-bright);font-size:clamp(28px,5vw,40px);margin:10px 0 4px;">' + (state.name ? escapeHtml(state.name) + "'s " : "Your ") + 'Final Score</h2>' +
+      '<div style="text-align:center;font-family:\'Bebas Neue\',sans-serif;font-size:clamp(48px,9vw,78px);color:var(--ink);margin:6px 0 18px;">$' + state.score + '</div>' +
+      '<p style="text-align:center;color:var(--ink-dim);font-family:\'Josefin Sans\',sans-serif;font-size:13px;margin-bottom:22px;">(out of $' + maxScore + ' possible, not counting Daily Double wagers)</p>' +
+      '<div style="background:var(--surface);border:1.5px solid var(--gold);border-radius:10px;padding:18px 20px;margin-bottom:20px;">' +
+        '<p style="font-family:\'Josefin Sans\',sans-serif;font-weight:700;color:var(--gold);letter-spacing:.08em;text-transform:uppercase;font-size:13px;margin:0 0 8px;">Mapping It Out &mdash; Extension Activity</p>' +
+        '<p style="color:var(--ink);font-family:\'Libre Caslon Text\', Georgia, serif;font-size:16px;line-height:1.5;margin:0;">Take a screenshot of this screen showing your score, then post it in Google Classroom under <strong>&ldquo;Mapping it out extension activity.&rdquo;</strong></p>' +
+      '</div>' +
+      '<div class="stage-actions" style="justify-content:center;">' +
+        '<button class="primary" id="btnPlayAgain">Play Again</button>' +
+      '</div>';
+    clueOverlay.hidden = true;
+    gameOverOverlay.hidden = false;
+    gameOverStage.querySelector("#btnPlayAgain").addEventListener("click", function(){
+      gameOverOverlay.hidden = true;
+      openSetup();
+    });
+  }
+
   /* ---------------- Setup overlay ---------------- */
   var setupOverlay = document.getElementById("setupOverlay");
-  var numTeamsEl = document.getElementById("numTeams");
   var setupNamesEl = document.getElementById("setupNames");
   var setPickerEl = document.getElementById("setPicker");
-  var teamCountChoice = 2;
   var setChoice = GAME_SETS[0].id;
 
   function renderSetPicker(){
@@ -360,53 +392,36 @@
       setPickerEl.appendChild(b);
     });
   }
-
-  function renderNumTeams(){
-    numTeamsEl.innerHTML = "";
-    [1,2,3,4].forEach(function(n){
-      var b = document.createElement("button");
-      b.textContent = n===1 ? "Solo" : n;
-      b.className = n===teamCountChoice ? "selected" : "";
-      b.addEventListener("click", function(){ teamCountChoice=n; renderNumTeams(); renderSetupNames(); });
-      numTeamsEl.appendChild(b);
-    });
-  }
-  function renderSetupNames(){
+  function renderSetupName(){
     setupNamesEl.innerHTML = "";
-    for(var i=0;i<teamCountChoice;i++){
-      var input = document.createElement("input");
-      input.type = "text";
-      input.placeholder = teamCountChoice===1 ? "Your name (optional)" : ("Team " + (i+1) + " name");
-      input.value = (state.teams[i] && state.teams[i].name) || (teamCountChoice===1 ? "You" : ("Team "+(i+1)));
-      input.id = "setupName"+i;
-      setupNamesEl.appendChild(input);
-    }
+    var input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = "Your name (optional)";
+    input.value = state.name || "";
+    input.id = "setupNameInput";
+    setupNamesEl.appendChild(input);
+  }
+  function openSetup(){
+    setChoice = state.setId || GAME_SETS[0].id;
+    renderSetPicker(); renderSetupName();
+    setupOverlay.hidden = false;
   }
 
   document.getElementById("btnStart").addEventListener("click", function(){
-    var teams = [];
-    for(var i=0;i<teamCountChoice;i++){
-      var val = document.getElementById("setupName"+i).value.trim();
-      teams.push({ name: val || (teamCountChoice===1 ? "You" : ("Team "+(i+1))), score: 0 });
-    }
+    var nameVal = document.getElementById("setupNameInput").value.trim();
     applySet(setChoice);
-    state.teams = teams; state.activeTeam = 0; state.used = {};
+    state.name = nameVal; state.score = 0; state.used = {};
     state.dailyDoubles = pickDailyDoubles(); state.started = true;
     saveState(); renderScoreboard(); renderBoard();
     setupOverlay.hidden = true; sfxSelect();
   });
 
   document.getElementById("btnNewTeams").addEventListener("click", function(){
-    teamCountChoice = state.teams.length || 2;
-    setChoice = state.setId || GAME_SETS[0].id;
-    renderSetPicker(); renderNumTeams(); renderSetupNames();
-    setupOverlay.hidden = false;
+    openSetup();
   });
 
   document.getElementById("btnReset").addEventListener("click", function(){
-    state.used = {}; state.dailyDoubles = pickDailyDoubles();
-    state.teams.forEach(function(t){ t.score = 0; });
-    state.activeTeam = 0;
+    state.used = {}; state.dailyDoubles = pickDailyDoubles(); state.score = 0;
     saveState(); renderScoreboard(); renderBoard();
   });
 
@@ -421,7 +436,7 @@
   function saveState(){ storageSafeSet(STORAGE_KEY, state); }
   function loadState(){
     var saved = storageSafeGet(STORAGE_KEY);
-    if(saved && saved.teams && saved.teams.length){ state = saved; }
+    if(saved && typeof saved.score === "number"){ state = saved; }
   }
 
   /* ---------------- Hot update support ---------------- */
@@ -431,12 +446,7 @@
     applySet(state.setId || GAME_SETS[0].id);
     renderScoreboard(); renderBoard();
     if(state.started){ setupOverlay.hidden = true; }
-    else {
-      teamCountChoice = state.teams.length || 2;
-      setChoice = state.setId || GAME_SETS[0].id;
-      renderSetPicker(); renderNumTeams(); renderSetupNames();
-      setupOverlay.hidden = false;
-    }
+    else { openSetup(); }
   }
   if(window.claude && window.claude.hot){
     window.claude.hot.snapshot(snapshot);
