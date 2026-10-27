@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Geography: The United States</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Josefin+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="title-block">
+      <div class="eyebrow">Roaring Twenties &middot; US History</div>
+      <h1>Geography: The United States</h1>
+      <div class="set-tag">Now playing: <span id="currentSetLabel">Set 1</span></div>
+    </div>
+    <div class="topbar-actions">
+      <button id="btnSound" aria-pressed="true">&#128266; Sound On</button>
+      <button id="btnReset">Reset Board</button>
+      <button id="btnNewTeams">New Game</button>
+    </div>
+  </div>
+
+  <div id="scoreboard"></div>
+  <div id="board"></div>
+
+  <footer>Built with real U.S. Census boundary data &mdash; not a licensed map image. Covers Great Migration routes, industrial boomtowns, the Harlem/jazz circuit, immigration gateways, and the Scopes Trial.</footer>
+</div>
+
+<div class="overlay" id="setupOverlay">
+  <div class="panel-box">
+    <h2 style="color:var(--burgundy);margin-bottom:10px;">Geography: The United States</h2>
+    <div class="setup-row">
+      <label>Choose a question set</label>
+      <div class="choice-row" id="setPicker"></div>
+    </div>
+    <div class="setup-row">
+      <label>How many are playing?</label>
+      <div class="choice-row" id="numTeams"></div>
+    </div>
+    <div class="setup-row">
+      <label>Name(s)</label>
+      <div id="setupNames"></div>
+    </div>
+    <div class="stage-actions">
+      <button class="primary" id="btnStart">Start Game</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="clueOverlay" hidden>
+  <div class="panel-box" id="clueStage"></div>
+</div>
+
+<script src="map-data.js"></script>
+<script>
+var STORAGE_KEY = "rt-geo-us-v1";
+var GAME_SETS = [
+  {
+    id: "setA", label: "Set 1",
+    categories: [
+      { name: "Great Migration Routes", clues: [
+        { clue: "Thousands of Black families leaving the Mississippi Delta rode the Illinois Central Railroad straight north into this city's South Side.", answer: "What is Chicago?",
+          map: { region:"us", alt:"Mississippi to Illinois migration route", highlight:["Mississippi","Illinois"], routes:[{from:"Jackson, MS",to:"Chicago"}], pins:[{name:"Jackson, MS",label:"Jackson, MS"},{name:"Chicago",label:"Chicago",labelBelow:true}] } },
+        { clue: "Families from Georgia and the Carolinas often rode the Seaboard rail route north to settle in this city's Harlem neighborhood.", answer: "What is New York City?",
+          map: { region:"us", alt:"Carolinas to New York migration route", highlight:["Georgia","South Carolina","New York"], routes:[{from:"Columbia, SC",to:"New York"}], pins:[{name:"Columbia, SC",label:"Columbia, SC"},{name:"New York",label:"New York City",labelBelow:true}] } },
+        { clue: "Workers from Alabama and Mississippi seeking jobs on the assembly line most often rode the rails to this Michigan city.", answer: "What is Detroit?",
+          map: { region:"us", alt:"Mississippi to Detroit migration route", highlight:["Mississippi","Alabama","Michigan"], routes:[{from:"Jackson, MS",to:"Detroit"}], pins:[{name:"Jackson, MS",label:"Jackson, MS"},{name:"Detroit",label:"Detroit",labelBelow:true}] } },
+        { clue: "This Tennessee city on the Mississippi River was a key rail junction where Delta migrants transferred onto trains bound for Chicago and Detroit.", answer: "What is Memphis?",
+          map: { region:"us", alt:"Memphis, Tennessee", highlight:["Tennessee"], pins:[{name:"Memphis",label:"Memphis"}] } },
+        { clue: "During and after World War II, a 'Second Great Migration' carried many Black Southerners all the way to this West Coast city for shipyard and aircraft-factory jobs.", answer: "What is Los Angeles?",
+          map: { region:"us", alt:"Los Angeles, California", highlight:["California"], pins:[{name:"Los Angeles",label:"Los Angeles"}] } }
+      ]},
+      { name: "Industrial Boomtowns", clues: [
+        { clue: "Henry Ford's moving assembly line turned this Michigan city into the capital of the booming automobile industry.", answer: "What is Detroit?",
+          map: { region:"us", alt:"Detroit, Michigan", highlight:["Michigan"], pins:[{name:"Detroit",label:"Detroit"}] } },
+        { clue: "This Pennsylvania city's mills made it the steel-producing heart of the nation in the 1920s.", answer: "What is Pittsburgh?",
+          map: { region:"us", alt:"Pittsburgh, Pennsylvania", highlight:["Pennsylvania"], pins:[{name:"Pittsburgh",label:"Pittsburgh"}] } },
+        { clue: "Oil gushers near this North Texas town helped kick off the state's 1920s oil boom.", answer: "What is Burkburnett, Texas?",
+          map: { region:"us", alt:"Burkburnett, Texas", highlight:["Texas"], pins:[{name:"Burkburnett",label:"Burkburnett"}] } },
+        { clue: "A 1920-21 oil boom around this small Central Texas town briefly made it one of the wildest boomtowns in the state.", answer: "What is Mexia, Texas?",
+          map: { region:"us", alt:"Mexia, Texas", highlight:["Texas"], pins:[{name:"Mexia",label:"Mexia"}] } },
+        { clue: "US Steel built this planned company town in northwest Indiana from scratch in 1906, naming it after the company's board chairman.", answer: "What is Gary, Indiana?",
+          map: { region:"us", alt:"Gary, Indiana", highlight:["Indiana"], pins:[{name:"Gary, Indiana",label:"Gary, Indiana"}] } }
+      ]},
+      { name: "Harlem & the Jazz Circuit", clues: [
+        { clue: "Many early jazz musicians got their start in this Louisiana port city's Storyville district before the Great Migration carried the music north.", answer: "What is New Orleans?",
+          map: { region:"us", alt:"New Orleans, Louisiana", highlight:["Louisiana"], pins:[{name:"New Orleans",label:"New Orleans"}] } },
+        { clue: "Riding the rails north from New Orleans, many jazz musicians settled in this Illinois city, home to a thriving 1920s South Side jazz scene.", answer: "What is Chicago?",
+          map: { region:"us", alt:"New Orleans to Chicago jazz route", highlight:["Louisiana","Illinois"], routes:[{from:"New Orleans",to:"Chicago"}], pins:[{name:"New Orleans",label:"New Orleans"},{name:"Chicago",label:"Chicago",labelBelow:true}] } },
+        { clue: "Clubs like the Cotton Club and the Savoy Ballroom made this New York City neighborhood the nightlife capital of the jazz circuit.", answer: "What is Harlem?",
+          map: { region:"us", alt:"Harlem, New York City", highlight:["New York"], pins:[{name:"Harlem (NYC)",label:"Harlem"}] } },
+        { clue: "This Manhattan neighborhood was the center of the era's Black literary and artistic flowering, as well as its jazz nightlife.", answer: "What is Harlem?",
+          map: { region:"us", alt:"Harlem, New York City", highlight:["New York"], pins:[{name:"Harlem (NYC)",label:"Harlem"}] } },
+        { clue: "Trace the classic jazz circuit: musicians traveled from New Orleans up through this Illinois city before many finally arrived in Harlem.", answer: "What is Chicago?",
+          map: { region:"us", alt:"New Orleans to Chicago to Harlem jazz circuit", highlight:["Louisiana","Illinois","New York"], routes:[{from:"New Orleans",to:"Chicago"},{from:"Chicago",to:"New York"}], pins:[{name:"New Orleans",label:"New Orleans"},{name:"Chicago",label:"Chicago"},{name:"New York",label:"Harlem",labelBelow:true}] } }
+      ]},
+      { name: "Immigration Gateways", clues: [
+        { clue: "Opened in 1892 in New York Harbor, this island was the main entry point for millions of European immigrants.", answer: "What is Ellis Island?",
+          map: { region:"us", alt:"Ellis Island, New York", highlight:["New York"], pins:[{name:"Ellis Island",label:"Ellis Island"}] } },
+        { clue: "This island in San Francisco Bay processed mostly Asian immigrants, especially from China, under far harsher conditions than its East Coast counterpart.", answer: "What is Angel Island?",
+          map: { region:"us", alt:"Angel Island, California", highlight:["California"], pins:[{name:"Angel Island",label:"Angel Island"}] } },
+        { clue: "The Chinese Exclusion Act of 1882 led immigration officials to detain many arrivals for weeks or months at this West Coast processing station.", answer: "What is Angel Island?",
+          map: { region:"us", alt:"Angel Island, California", highlight:["California"], pins:[{name:"Angel Island",label:"Angel Island"}] } },
+        { clue: "The Immigration Act of 1924 sharply cut the flow of new arrivals through this New York Harbor gateway, which had processed over 12 million immigrants since 1892.", answer: "What is Ellis Island?",
+          map: { region:"us", alt:"Ellis Island, New York", highlight:["New York"], pins:[{name:"Ellis Island",label:"Ellis Island"}] } },
+        { clue: "Name both major immigration gateways of the era: one in New York Harbor for mostly European arrivals, one in San Francisco Bay for mostly Asian arrivals.", answer: "What are Ellis Island and Angel Island?",
+          map: { region:"us", alt:"Ellis Island and Angel Island", highlight:["New York","California"], pins:[{name:"Ellis Island",label:"Ellis Island"},{name:"Angel Island",label:"Angel Island"}] } }
+      ]},
+      { name: "Scopes Trial & Bible Belt Geography", clues: [
+        { clue: "In 1925, substitute teacher John Scopes was tried for teaching evolution in this small Tennessee town.", answer: "What is Dayton, Tennessee?",
+          map: { region:"us", alt:"Dayton, Tennessee", highlight:["Tennessee"], pins:[{name:"Dayton, TN",label:"Dayton, TN"}] } },
+        { clue: "The Scopes Trial unfolded in a region of the rural South nicknamed this, for its strong current of conservative Protestant religion.", answer: "What is the Bible Belt?",
+          map: { region:"us", alt:"The Bible Belt", highlight:["Tennessee","Mississippi","Georgia","South Carolina","Alabama"], pins:[{name:"Dayton, TN",label:"Dayton, TN"}] } },
+        { clue: "Dayton's location in this state put the trial squarely in a region where Fundamentalist Protestant beliefs ran especially strong in the 1920s.", answer: "What is Tennessee?",
+          map: { region:"us", alt:"Tennessee", highlight:["Tennessee"], pins:[{name:"Dayton, TN",label:"Dayton, TN"}] } },
+        { clue: "Famed attorney Clarence Darrow traveled from this Illinois city to defend Scopes, a stark culture clash of urban North meeting rural South.", answer: "What is Chicago?",
+          map: { region:"us", alt:"Chicago to Dayton, Tennessee", highlight:["Illinois","Tennessee"], routes:[{from:"Chicago",to:"Dayton, TN"}], pins:[{name:"Chicago",label:"Chicago"},{name:"Dayton, TN",label:"Dayton, TN",labelBelow:true}] } },
+        { clue: "Prosecutor William Jennings Bryan drew support from this broad belt of conservative, rural Southern states that stretched well beyond Tennessee alone.", answer: "What is the Bible Belt?",
+          map: { region:"us", alt:"The Bible Belt", highlight:["Tennessee","Mississippi","Georgia","South Carolina","Alabama","Arkansas"], pins:[{name:"Dayton, TN",label:"Dayton, TN"}] } }
+      ]}
+    ]
+  },
+  {
+    id: "setB", label: "Set 2",
+    categories: [
+      { name: "Great Migration Routes", clues: [
+        { clue: "This Michigan city's auto plants pulled so many Southern workers north that its Black population multiplied several times over between 1910 and 1930.", answer: "What is Detroit?",
+          map: { region:"us", alt:"Detroit, Michigan", highlight:["Michigan"], pins:[{name:"Detroit",label:"Detroit"}] } },
+        { clue: "Sitting on the Mississippi River in Tennessee, this city served as a major departure point for migrants riding the rails north.", answer: "What is Memphis?",
+          map: { region:"us", alt:"Memphis, Tennessee", highlight:["Tennessee"], pins:[{name:"Memphis",label:"Memphis"}] } },
+        { clue: "World War II defense jobs drew a new wave of Black Southerners west along rail and highway routes to this Southern California city.", answer: "What is Los Angeles?",
+          map: { region:"us", alt:"Los Angeles, California", highlight:["California"], pins:[{name:"Los Angeles",label:"Los Angeles"}] } },
+        { clue: "So many Mississippi Delta migrants rode the Illinois Central into this city that its South Side became known as the 'Black Metropolis.'", answer: "What is Chicago?",
+          map: { region:"us", alt:"Mississippi to Chicago migration route", highlight:["Mississippi","Illinois"], routes:[{from:"Jackson, MS",to:"Chicago"}], pins:[{name:"Jackson, MS",label:"Jackson, MS"},{name:"Chicago",label:"Chicago",labelBelow:true}] } },
+        { clue: "Migrants moving up the Eastern Seaboard from the Carolinas and Georgia most often ended their journey in this city's Harlem neighborhood.", answer: "What is New York City?",
+          map: { region:"us", alt:"Carolinas to New York migration route", highlight:["Georgia","South Carolina","New York"], routes:[{from:"Columbia, SC",to:"New York"}], pins:[{name:"Columbia, SC",label:"Columbia, SC"},{name:"New York",label:"New York City",labelBelow:true}] } }
+      ]},
+      { name: "Industrial Boomtowns", clues: [
+        { clue: "A string of oil discoveries near this North Texas town launched Texas into the national oil business in the 1920s.", answer: "What is Burkburnett?",
+          map: { region:"us", alt:"Burkburnett, Texas", highlight:["Texas"], pins:[{name:"Burkburnett",label:"Burkburnett"}] } },
+        { clue: "An earlier 1901 gusher near this East Texas city helped set off the Texas oil boom that roared on through the 1920s.", answer: "What is Beaumont?",
+          map: { region:"us", alt:"Beaumont, Texas", highlight:["Texas"], pins:[{name:"Beaumont",label:"Beaumont"}] } },
+        { clue: "Rubber companies like Goodyear and Firestone made this Ohio city the tire capital of America in the 1920s.", answer: "What is Akron, Ohio?",
+          map: { region:"us", alt:"Akron, Ohio", highlight:["Ohio"], pins:[{name:"Akron",label:"Akron"}] } },
+        { clue: "Steel mills along the Cuyahoga River made this Ohio city, along with Pittsburgh, a major center of industrial production.", answer: "What is Cleveland?",
+          map: { region:"us", alt:"Cleveland, Ohio", highlight:["Ohio"], pins:[{name:"Cleveland",label:"Cleveland"}] } },
+        { clue: "This Pennsylvania steel city's mills employed waves of immigrant and migrant laborers working long shifts in brutal conditions.", answer: "What is Pittsburgh?",
+          map: { region:"us", alt:"Pittsburgh, Pennsylvania", highlight:["Pennsylvania"], pins:[{name:"Pittsburgh",label:"Pittsburgh"}] } }
+      ]},
+      { name: "Harlem & the Jazz Circuit", clues: [
+        { clue: "This 'Crescent City' on the Mississippi River is considered the birthplace of jazz.", answer: "What is New Orleans?",
+          map: { region:"us", alt:"New Orleans, Louisiana", highlight:["Louisiana"], pins:[{name:"New Orleans",label:"New Orleans"}] } },
+        { clue: "Many New Orleans musicians, including Louis Armstrong, moved north to this Illinois city to join its thriving 1920s jazz scene.", answer: "What is Chicago?",
+          map: { region:"us", alt:"New Orleans to Chicago jazz route", highlight:["Louisiana","Illinois"], routes:[{from:"New Orleans",to:"Chicago"}], pins:[{name:"New Orleans",label:"New Orleans"},{name:"Chicago",label:"Chicago",labelBelow:true}] } },
+        { clue: "By the mid-1920s, this Manhattan neighborhood had become the jazz circuit's final destination and the home of a flowering of Black literature and art.", answer: "What is Harlem?",
+          map: { region:"us", alt:"Harlem, New York City", highlight:["New York"], pins:[{name:"Harlem (NYC)",label:"Harlem"}] } },
+        { clue: "The Cotton Club, which featured Black performers for a whites-only audience, operated in this New York City neighborhood.", answer: "What is Harlem?",
+          map: { region:"us", alt:"Harlem, New York City", highlight:["New York"], pins:[{name:"Harlem (NYC)",label:"Harlem"}] } },
+        { clue: "Name the Illinois city that formed the middle link on the jazz circuit between New Orleans, where jazz began, and Harlem, where it flourished nationally.", answer: "What is Chicago?",
+          map: { region:"us", alt:"New Orleans to Chicago to Harlem jazz circuit", highlight:["Louisiana","Illinois","New York"], routes:[{from:"New Orleans",to:"Chicago"},{from:"Chicago",to:"New York"}], pins:[{name:"New Orleans",label:"New Orleans"},{name:"Chicago",label:"Chicago"},{name:"New York",label:"Harlem",labelBelow:true}] } }
+      ]},
+      { name: "Immigration Gateways", clues: [
+        { clue: "Immigration officials in San Francisco Bay processed new arrivals, many from China and Japan, at this island station.", answer: "What is Angel Island?",
+          map: { region:"us", alt:"Angel Island, California", highlight:["California"], pins:[{name:"Angel Island",label:"Angel Island"}] } },
+        { clue: "Millions of Italian, Jewish, and other European immigrants first set foot in the United States at this island in New York Harbor.", answer: "What is Ellis Island?",
+          map: { region:"us", alt:"Ellis Island, New York", highlight:["New York"], pins:[{name:"Ellis Island",label:"Ellis Island"}] } },
+        { clue: "Sometimes called the 'Guardian of the Western Gate,' this immigration station in San Francisco Bay operated from 1910 to 1940.", answer: "What is Angel Island?",
+          map: { region:"us", alt:"Angel Island, California", highlight:["California"], pins:[{name:"Angel Island",label:"Angel Island"}] } },
+        { clue: "After 1924, strict national quotas dramatically slowed the river of new arrivals passing through this New York Harbor gateway.", answer: "What is Ellis Island?",
+          map: { region:"us", alt:"Ellis Island, New York", highlight:["New York"], pins:[{name:"Ellis Island",label:"Ellis Island"}] } },
+        { clue: "Name the two main immigration gateways of the era: one in New York Harbor processing mostly Europeans, and one in San Francisco Bay processing mostly Asian immigrants.", answer: "What are Ellis Island and Angel Island?",
+          map: { region:"us", alt:"Ellis Island and Angel Island", highlight:["New York","California"], pins:[{name:"Ellis Island",label:"Ellis Island"},{name:"Angel Island",label:"Angel Island"}] } }
+      ]},
+      { name: "Scopes Trial & Bible Belt Geography", clues: [
+        { clue: "This small town in eastern Tennessee hosted the famous 1925 trial over the teaching of evolution in public schools.", answer: "What is Dayton?",
+          map: { region:"us", alt:"Dayton, Tennessee", highlight:["Tennessee"], pins:[{name:"Dayton, TN",label:"Dayton, TN"}] } },
+        { clue: "The region stretching across the rural South, known for strict Protestant fundamentalism, earned this nickname still used today.", answer: "What is the Bible Belt?",
+          map: { region:"us", alt:"The Bible Belt", highlight:["Tennessee","Mississippi","Georgia","South Carolina","Alabama"], pins:[{name:"Dayton, TN",label:"Dayton, TN"}] } },
+        { clue: "Dayton sits in this state, whose 1925 Butler Act made it illegal to teach evolution in public schools.", answer: "What is Tennessee?",
+          map: { region:"us", alt:"Tennessee", highlight:["Tennessee"], pins:[{name:"Dayton, TN",label:"Dayton, TN"}] } },
+        { clue: "Famed defense attorney Clarence Darrow made a long trip south from this Illinois city to defend John Scopes.", answer: "What is Chicago?",
+          map: { region:"us", alt:"Chicago to Dayton, Tennessee", highlight:["Illinois","Tennessee"], routes:[{from:"Chicago",to:"Dayton, TN"}], pins:[{name:"Chicago",label:"Chicago"},{name:"Dayton, TN",label:"Dayton, TN",labelBelow:true}] } },
+        { clue: "Prosecutor William Jennings Bryan drew support from this broad belt of conservative, rural Southern states that stretched well beyond Tennessee alone.", answer: "What is the Bible Belt?",
+          map: { region:"us", alt:"The Bible Belt", highlight:["Tennessee","Mississippi","Georgia","South Carolina","Alabama","Arkansas"], pins:[{name:"Dayton, TN",label:"Dayton, TN"}] } }
+      ]}
+    ]
+  }
+];
+</script>
+<script src="engine.js"></script>
+</body>
+</html>
